@@ -268,7 +268,7 @@ if df_all is not None:
     col_tabla, col_grafico = st.columns([1.2, 1])
 
     with col_tabla:
-        st.subheader("Tabla de instrumentos con tasas")
+        st.subheader("Tabla de instrumentos con tasas (formateada)")
 
         columnas_mostrar = [
             "tipo", "symbol", "c",
@@ -276,7 +276,31 @@ if df_all is not None:
             "TNA (%)", "TIR (%)", "TEM (%)"
         ]
 
-        st.dataframe(df_all[columnas_mostrar])
+        # Copia para mostrar
+        df_display = df_all[columnas_mostrar].copy()
+
+        # Aseguramos tipos numéricos y redondeamos
+        for col in ["c", "TNA (%)", "TIR (%)", "TEM (%)"]:
+            df_display[col] = pd.to_numeric(df_display[col], errors="coerce").round(2)
+
+        # dias_a_vencimiento como entero
+        df_display["dias_a_vencimiento"] = pd.to_numeric(
+            df_display["dias_a_vencimiento"], errors="coerce"
+        ).astype("Int64")
+
+        # Renombrar columnas para mostrar
+        df_display = df_display.rename(columns={
+            "tipo": "Tipo",
+            "symbol": "Símbolo",
+            "c": "Precio",
+            "dias_a_vencimiento": "Días a vencimiento",
+            "TNA (%)": "TNA (%)",
+            "TIR (%)": "TIR (%)",
+            "TEM (%)": "TEM mensual (%)"
+        })
+
+        st.dataframe(df_display)
+
 
     with col_grafico:
         st.subheader("Curva TIR vs días a vencimiento")

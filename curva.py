@@ -345,7 +345,7 @@ if df_all is not None:
                 hovertemplate=(
                     "<b>%{text}</b><br><br>"
                     "Días: %{x}<br>"
-                    f"{tasa_elegida}: %{y:.2f}%<br>"
+                    f"{tasa_elegida}: %{{y:.2f}}%<br>"
                     "Precio: %{customdata[0]:.2f}<br>"
                     "Vencimiento: %{customdata[1]}<extra></extra>"
                 ),

@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, date
+import plotly.graph_objects as go
 
 # =========================
 # CONFIG STREAMLIT
@@ -268,7 +269,7 @@ if df_all is not None:
     col_tabla, col_grafico = st.columns([1.2, 1])
 
     with col_tabla:
-        st.subheader("Tabla de instrumentos con tasas (formateada)")
+        st.subheader("Tabla de instrumentos con tasas")
 
         columnas_mostrar = [
             "tipo", "symbol", "c",
@@ -291,67 +292,89 @@ if df_all is not None:
         # Renombrar columnas para mostrar
         df_display = df_display.rename(columns={
             "tipo": "Tipo",
-            "symbol": "Símbolo",
+            "symbol": "Ticker",
             "c": "Precio",
             "dias_a_vencimiento": "Días a vencimiento",
             "TNA (%)": "TNA (%)",
             "TIR (%)": "TIR (%)",
-            "TEM (%)": "TEM mensual (%)"
+            "TEM (%)": "TEM (%)"
         })
 
         st.dataframe(df_display)
 
 
     with col_grafico:
-        st.subheader("Curva TIR vs días a vencimiento")
+        st.subheader("Curva interactiva con regresión logarítmica")
 
-        # --- Datos para el gráfico ---
-        x = df_all["dias_a_vencimiento"].values
-        y = df_all["TIR (%)"].values   # ya está en %
+        # Selector de tasa
+        tasa_elegida = st.selectbox(
+            "Tasa a graficar:",
+            ["TIR (%)", "TNA (%)", "TEM (%)"],
+            index=0
+        )
 
-        mask = (x > 0) & (~np.isnan(y))
-        x_valid = x[mask]
-        y_valid = y[mask]
+        # Filtrar datos válidos (evitar NaN y días <= 0)
+        df_plot = df_all.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
+        df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
 
-        fig, ax = plt.subplots(figsize=(8, 6))
+        x = df_plot["dias_a_vencimiento"].values
+        y = df_plot[tasa_elegida].values
 
-        # Puntos
-        ax.scatter(df_all["dias_a_vencimiento"], df_all["TIR (%)"], color='darkblue')
+        # Ajuste logarítmico
+        a, b = np.polyfit(np.log(x), y, 1)
+        x_line = np.linspace(x.min(), x.max(), 300)
+        y_line = a * np.log(x_line) + b
 
-        # Etiquetas con el símbolo
-        for i, row in df_all.iterrows():
-            if not pd.isna(row["TIR (%)"]) and row["dias_a_vencimiento"] > 0:
-                ax.text(
-                    row["dias_a_vencimiento"],
-                    row["TIR (%)"],
-                    row["symbol"],
-                    fontsize=8,
-                    ha='left',
-                    va='bottom'
-                )
+        # Figura
+        fig = go.Figure()
 
-        # Regresión logarítmica si hay datos suficientes
-        if len(x_valid) > 1:
-            a, b = np.polyfit(np.log(x_valid), y_valid, 1)
-            x_line = np.linspace(x_valid.min(), x_valid.max(), 300)
-            y_line = a * np.log(x_line) + b
+        # Puntos (scatter), separados por tipo
+        tipos = df_plot["tipo"].unique()
+        colores = {"LETRA": "blue", "BONO": "red"}
 
-            ax.plot(
-                x_line, y_line,
-                color="purple",
-                linewidth=2,
-            )
+        for tipo in tipos:
+            sub = df_plot[df_plot["tipo"] == tipo]
 
-        ax.set_xlabel("Días a vencimiento")
-        ax.set_ylabel("TIR (%)")
-        ax.set_title("Curva de instrumentos tasa fija")
-        ax.grid(True)
-        ax.legend()
+            fig.add_trace(go.Scatter(
+                x=sub["dias_a_vencimiento"],
+                y=sub[tasa_elegida],
+                mode="markers",
+                name=tipo,
+                marker=dict(size=10, opacity=0.8, color=colores.get(tipo, "gray")),
+                text=sub["symbol"],  # aparece en hover
+                hovertemplate=(
+                    "<b>%{text}</b><br><br>"
+                    "Días: %{x}<br>"
+                    f"{tasa_elegida}: %{y:.2f}%<br>"
+                    "Precio: %{customdata[0]:.2f}<br>"
+                    "Vencimiento: %{customdata[1]}<extra></extra>"
+                ),
+                customdata=np.stack([
+                    sub["c"].round(2),
+                    sub["vencimiento"].dt.strftime("%Y-%m-%d")
+                ], axis=-1)
+            ))
 
-        st.pyplot(fig)
+        # Línea de regresión logarítmica
+        fig.add_trace(go.Scatter(
+            x=x_line,
+            y=y_line,
+            mode="lines",
+            name="Regresión logarítmica",
+            line=dict(color="purple", width=3, dash="dash")
+        ))
 
-else:
-    st.warning("No se pudo construir el DataFrame unificado de instrumentos.")
+        # Layout
+        fig.update_layout(
+            title=f"Curva {tasa_elegida} con regresión logarítmica",
+            xaxis_title="Días a vencimiento",
+            yaxis_title=tasa_elegida,
+            hovermode="closest",
+            template="plotly_white",
+            legend=dict(title="Tipo de instrumento")
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
 
 
 #py -m streamlit run curva.py

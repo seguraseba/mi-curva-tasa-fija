@@ -305,7 +305,7 @@ if df_all is not None:
 
 
     with col_grafico:
-        st.subheader("Curva interactiva con regresión logarítmica")
+        st.subheader("")
 
         # Selector de tasa
         tasa_elegida = st.selectbox(
@@ -367,7 +367,7 @@ if df_all is not None:
 
         # Layout
         fig.update_layout(
-            title=f"Curva {tasa_elegida} con regresión logarítmica",
+            title=f"Curva {tasa_elegida} ",
             xaxis_title="Días a vencimiento",
             yaxis_title=tasa_elegida,
             hovermode="closest",

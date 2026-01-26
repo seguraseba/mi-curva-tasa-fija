@@ -380,3 +380,9 @@ if df_all is not None:
 #py -m streamlit run curva.py
 #cd "C:\Users\ssegura\OneDrive - BALANZ\Escritorio\curvas"
 
+"""
+git add curva.py
+git commit -m "Arreglo hovertemplate plotly"
+git push
+
+"""

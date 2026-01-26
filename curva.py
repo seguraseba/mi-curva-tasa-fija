@@ -206,10 +206,68 @@ def bonos_lista(con_vencimiento: bool = True) -> pd.DataFrame:
     return df
 
 # =========================
-# UNIFICAR INSTRUMENTOS
+# LISTAS CER (LETRAS X... y BONOS CER)
 # =========================
 
-def instrumentos_unificados():
+def letras_cer_lista(con_vencimiento: bool = True) -> pd.DataFrame:
+    """
+    Devuelve las 'letras CER' (tickers que empiezan con X) desde la API de letras (arg_notes).
+    """
+    datos = _fetch_json(URL_LETRAS)
+
+    # Solo X... (CER) dentro de tu universo
+    datos = [x for x in datos if x.get("symbol") in LETRAS_CER_TARGET]
+
+    df = pd.DataFrame(datos)
+
+    columnas = ['symbol', 'c', 'v', 'q_bid', 'px_bid', 'px_ask',
+                'q_ask', 'q_op', 'pct_change']
+    columnas = [c for c in columnas if c in df.columns]
+    df = df[columnas].copy()
+
+    if con_vencimiento and not df.empty:
+        df["vencimiento"] = df["symbol"].apply(vencimiento_desde_symbol)
+        df["vencimiento"] = pd.to_datetime(df["vencimiento"])
+        hoy = pd.Timestamp.today().normalize()
+        df["dias_a_vencimiento"] = (df["vencimiento"] - hoy).dt.days
+        df = df.sort_values("dias_a_vencimiento", ascending=True)
+
+    return df
+
+
+def bonos_cer_lista() -> pd.DataFrame:
+    """
+    Devuelve bonos CER desde la API de bonos (arg_bonds).
+    NOTA: muchos CER no siguen el patrón de vencimiento_desde_symbol (TX26, DICP, etc.)
+    por eso por ahora NO calculamos vencimiento aquí para no romper.
+    """
+    datos = _fetch_json(URL_BONOS)
+
+    # Excluimos X... acá porque esos los traemos desde notas (letras_cer_lista)
+    datos = [
+        x for x in datos
+        if x.get("symbol") in BONOS_CER_TARGET and not str(x.get("symbol", "")).upper().startswith("X")
+    ]
+
+    df = pd.DataFrame(datos)
+
+    columnas = ['symbol', 'c', 'v', 'q_bid', 'px_bid', 'px_ask',
+                'q_ask', 'q_op', 'pct_change']
+    columnas = [c for c in columnas if c in df.columns]
+    df = df[columnas].copy()
+
+    # placeholders para compatibilidad con la tabla/merge
+    if not df.empty:
+        df["vencimiento"] = pd.NaT
+        df["dias_a_vencimiento"] = pd.NA
+
+    return df
+
+# =========================
+# ARMAR TABLAS: TASA FIJA y CER
+# =========================
+
+def instrumentos_tasa_fija():
     df_letras = letras_lista(con_vencimiento=True).copy()
     df_letras["tipo"] = "LETRA"
 
@@ -219,6 +277,24 @@ def instrumentos_unificados():
     df = pd.concat([df_letras, df_bonos], ignore_index=True, sort=True)
     df = df.sort_values(["vencimiento", "tipo", "symbol"]).reset_index(drop=True)
     return df
+
+
+def instrumentos_cer():
+    df_letras_cer = letras_cer_lista(con_vencimiento=True).copy()
+    df_letras_cer["tipo"] = "LETRA CER"
+
+    df_bonos_cer = bonos_cer_lista().copy()
+    df_bonos_cer["tipo"] = "BONO CER"
+
+    df = pd.concat([df_letras_cer, df_bonos_cer], ignore_index=True, sort=True)
+
+    # Orden: primero los que tienen vencimiento (letras CER), luego bonos CER (sin vencimiento por ahora)
+    df["tiene_vto"] = df["vencimiento"].notna()
+    df = df.sort_values(["tiene_vto", "vencimiento", "tipo", "symbol"],
+                        ascending=[False, True, True, True])
+    df = df.drop(columns=["tiene_vto"]).reset_index(drop=True)
+    return df
+
 
 # =========================
 # FUNCIONES DE TASAS
@@ -283,23 +359,26 @@ def calcular_tem_desde_tir(row):
 st.title("Curva de instrumentos tasa fija en pesos 💸")
 
 try:
-    df_all = instrumentos_unificados()
+    df_tf = instrumentos_tasa_fija()
+    df_cer = instrumentos_cer()
 except Exception as e:
     st.error(f"Error al cargar datos de instrumentos: {e}")
-    df_all = None
+    df_tf = None
+    df_cer = None
 
-if df_all is not None:
+if df_tf is not None:
+
 
     # Calcular tasas
-    df_all["TNA (%)"] = df_all.apply(
+    df_tf["TNA (%)"] = df_tf.apply(
         lambda row: calcular_tna(row, PAGOS_FINALES),
         axis=1
     )
-    df_all["TIR (%)"] = df_all.apply(
+    df_tf["TIR (%)"] = df_tf.apply(
         lambda row: calcular_tir(row, PAGOS_FINALES),
         axis=1
     )
-    df_all["TEM (%)"] = df_all.apply(calcular_tem_desde_tir, axis=1)
+    df_tf["TEM (%)"] = df_tf.apply(calcular_tem_desde_tir, axis=1)
 
     # =========================
     # LAYOUT: TABLA (IZQ) Y GRÁFICO (DER)
@@ -316,7 +395,7 @@ if df_all is not None:
         ]
 
         # Copia para mostrar
-        df_display = df_all[columnas_mostrar].copy()
+        df_display = df_tf[columnas_mostrar].copy()
 
         # Aseguramos tipos numéricos y redondeamos
         for col in ["c", "TNA (%)", "TIR (%)", "TEM (%)"]:
@@ -340,6 +419,29 @@ if df_all is not None:
 
         st.dataframe(df_display)
 
+        st.subheader("Tabla Bonos/Instrumentos CER")
+
+        if df_cer is None or df_cer.empty:
+            st.info("No se encontraron instrumentos CER.")
+        else:
+            cols_cer = ["tipo", "symbol", "c", "v", "pct_change"]
+            cols_cer = [c for c in cols_cer if c in df_cer.columns]
+
+            df_cer_display = df_cer[cols_cer].copy()
+            if "c" in df_cer_display.columns:
+                df_cer_display["c"] = pd.to_numeric(df_cer_display["c"], errors="coerce").round(2)
+
+            df_cer_display = df_cer_display.rename(columns={
+                "tipo": "Tipo",
+                "symbol": "Ticker",
+                "c": "Precio",
+                "v": "Volumen",
+                "pct_change": "% Var"
+            })
+
+            st.dataframe(df_cer_display, use_container_width=True)
+
+
 
     with col_grafico:
         st.subheader("")
@@ -352,7 +454,7 @@ if df_all is not None:
         )
 
         # Filtrar datos válidos (evitar NaN y días <= 0)
-        df_plot = df_all.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
+        df_plot = df_tf.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
         df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
 
         x = df_plot["dias_a_vencimiento"].values

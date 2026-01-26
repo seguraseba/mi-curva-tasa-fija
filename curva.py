@@ -101,6 +101,19 @@ BONOS_CER_TARGET = [
     "X30N6",
 ]
 
+# =========================
+# SEPARAR TARGETS: TASA FIJA vs CER
+# =========================
+
+# Tasa fija: excluye letras que empiezan con X
+LETRAS_TF_TARGET = [s for s in LETRAS_TARGET if not s.upper().startswith("X")]
+BONOS_TF_TARGET = BONOS_TARGET[:]  # igual que BONOS_TARGET
+
+# CER: letras que empiezan con X + bonos cer
+LETRAS_CER_TARGET = [s for s in LETRAS_TARGET if s.upper().startswith("X")]
+BONOS_CER_TARGET = BONOS_CER_TARGET[:]  # ya la tenés
+
+
 PAGOS_FINALES = {
     "T30E6":142.22,
     "T13F6":144.97,
@@ -141,10 +154,12 @@ def letras_lista(con_vencimiento: bool = True) -> pd.DataFrame:
     datos = _fetch_json(URL_LETRAS)
 
     # filtrar universo target y sacar BNA6D por las dudas
+  
     datos = [
         x for x in datos
-        if x.get("symbol") in LETRAS_TARGET and x.get("symbol") != "BNA6D"
+        if x.get("symbol") in LETRAS_TF_TARGET and x.get("symbol") != "BNA6D"
     ]
+
 
     df = pd.DataFrame(datos)
 

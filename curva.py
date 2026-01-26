@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime, date
 import plotly.graph_objects as go
+from pandas.tseries.offsets import CustomBusinessDay
 
 # =========================
 # CONFIG STREAMLIT
@@ -77,6 +78,27 @@ BONOS_TARGET = [
     "T15E7",
     "T30A7",
     "T30J7",
+]
+
+BONOS_CER_TARGET = [
+    "TZXM6",
+    "TZX26",
+    "TX26",
+    "TZXO6",
+    "TZXD6",
+    "TZXM7",
+    "TZX27",
+    "TZXD7",
+    "TZX28",
+    "TX28",
+    "TX31",
+    "DICP",
+    "PARP",
+    "CUAP",
+    "TZXA7",
+    "TZXY7",
+    "X29Y6",
+    "X30N6",
 ]
 
 PAGOS_FINALES = {

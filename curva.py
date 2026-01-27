@@ -706,7 +706,7 @@ if df_tf is not None:
             st.info("No se encontraron instrumentos CER.")
         else:
             
-            cols_cer = ["tipo","symbol","c","v","pct_change", "dias_a_vencimiento","TIR real CER (%)","CER rend (%)","CER factor","Liq-10","Emis-10","err"]
+            cols_cer = ["tipo","symbol","c","v","pct_change", "dias_a_vencimiento","TIR real CER (%)"]
             cols_cer = [c for c in cols_cer if c in df_cer.columns]
 
             df_cer_display = df_cer[cols_cer].copy()

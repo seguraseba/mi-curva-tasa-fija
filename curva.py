@@ -95,6 +95,12 @@ def rendimiento_cer_bono(symbol: str, cer_df: pd.DataFrame, fecha_emision_map: d
         "rendimiento_cer_pct": rend_pct,
     }
 
+def rendimiento_real_por_precio(precio: float, factor_cer: float) -> float | None:
+    if precio is None or factor_cer is None:
+        return None
+    if precio <= 0:
+        return None
+    return (factor_cer / precio - 1) * 100
 
 
 
@@ -542,6 +548,15 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
     df_cer = df_cer.copy()
     df_cer[["CER factor","CER rend (%)","Liq-10","Emis-10","err"]] = df_cer.apply(_calc, axis=1)
 
+# =========================
+# RENDIMIENTO REAL POR PRECIO
+# =========================
+df_cer["Real rend (%)"] = df_cer.apply(
+    lambda row: rendimiento_real_por_precio(row.get("c"), row.get("CER factor")),
+    axis=1
+)
+
+
 
 if df_tf is not None:
 
@@ -611,7 +626,8 @@ if df_tf is not None:
         if df_cer is None or df_cer.empty:
             st.info("No se encontraron instrumentos CER.")
         else:
-            cols_cer = ["tipo","symbol","c","v","pct_change","CER rend (%)","CER factor","Liq-10","Emis-10","err"]
+            
+            cols_cer = ["tipo","symbol","c","v","pct_change","Real rend (%)","CER rend (%)","CER factor","Liq-10","Emis-10","err"]
             cols_cer = [c for c in cols_cer if c in df_cer.columns]
 
             df_cer_display = df_cer[cols_cer].copy()

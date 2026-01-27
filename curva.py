@@ -551,10 +551,28 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
 # =========================
 # RENDIMIENTO REAL POR PRECIO
 # =========================
-df_cer["Real rend (%)"] = df_cer.apply(
-    lambda row: rendimiento_real_por_precio(row.get("c"), row.get("CER factor")),
+
+df_cer["TIR real CER (%)"] = df_cer.apply(
+    lambda row: tir_real_cer(
+        row.get("c"),
+        row.get("CER factor"),
+        row.get("dias_a_vencimiento")
+    ),
     axis=1
 )
+
+
+def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365) -> float | None:
+    if precio is None or factor_cer is None or dias is None:
+        return None
+    if precio <= 0 or factor_cer <= 0 or dias <= 0:
+        return None
+
+    # VF real por 100 VN
+    vf = 100 * factor_cer
+
+    tir = (vf / precio) ** (base_dias / dias) - 1
+    return tir * 100
 
 
 
@@ -627,7 +645,7 @@ if df_tf is not None:
             st.info("No se encontraron instrumentos CER.")
         else:
             
-            cols_cer = ["tipo","symbol","c","v","pct_change","Real rend (%)","CER rend (%)","CER factor","Liq-10","Emis-10","err"]
+            cols_cer = ["tipo","symbol","c","v","pct_change","TIR real CER (%)","CER rend (%)","CER factor","Liq-10","Emis-10"]
             cols_cer = [c for c in cols_cer if c in df_cer.columns]
 
             df_cer_display = df_cer[cols_cer].copy()

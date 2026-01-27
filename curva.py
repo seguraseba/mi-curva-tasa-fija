@@ -469,6 +469,7 @@ def instrumentos_tasa_fija():
     return df
 
 
+
 def instrumentos_cer():
     df_letras_cer = letras_cer_lista(con_vencimiento=True).copy()
     df_letras_cer["tipo"] = "LETRA CER"
@@ -478,12 +479,11 @@ def instrumentos_cer():
 
     df = pd.concat([df_letras_cer, df_bonos_cer], ignore_index=True, sort=True)
 
-    # Orden: primero los que tienen vencimiento (letras CER), luego bonos CER (sin vencimiento por ahora)
-    df = df.sort_values(["vencimiento", "tipo", "symbol"]).reset_index(drop=True)
-    df = df.sort_values(["tiene_vto", "vencimiento", "tipo", "symbol"],
-                        ascending=[False, True, True, True])
-    df = df.drop(columns=["tiene_vto"]).reset_index(drop=True)
-    return df
+    # Orden simple (ya debería existir vencimiento en ambos)
+    if "vencimiento" in df.columns:
+        df = df.sort_values(["vencimiento", "tipo", "symbol"], ascending=[True, True, True])
+
+    return df.reset_index(drop=True)
 
 
 # =========================
@@ -596,6 +596,11 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
     df_cer = df_cer.copy()
     df_cer[["CER factor","CER rend (%)","Liq-10","Emis-10","err"]] = df_cer.apply(_calc, axis=1)
 
+# =========================
+# RENDIMIENTO REAL POR PRECIO
+# =========================
+
+if df_cer is not None and not df_cer.empty:
     df_cer["TIR real CER (%)"] = df_cer.apply(
         lambda row: tir_real_cer(
             row.get("c"),
@@ -605,19 +610,6 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
         axis=1
     )
 
-
-# =========================
-# RENDIMIENTO REAL POR PRECIO
-# =========================
-
-df_cer["TIR real CER (%)"] = df_cer.apply(
-    lambda row: tir_real_cer(
-        row.get("c"),
-        row.get("CER factor"),
-        row.get("dias_a_vencimiento")
-    ),
-    axis=1
-)
 
 
 def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):

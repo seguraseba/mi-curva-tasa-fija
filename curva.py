@@ -442,7 +442,7 @@ if df_tf is not None:
             st.dataframe(
                 df_cer_display,
                 use_container_width=True,
-                height=800   # probá 600 / 800 / 1000 según pantalla
+                height=700   # probá 600 / 800 / 1000 según pantalla
             )
 
 

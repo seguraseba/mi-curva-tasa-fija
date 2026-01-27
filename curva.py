@@ -18,39 +18,36 @@ CER_REPO_PATH  = Path(__file__).parent / "CER.xlsx"
 def cargar_cer(path: Path) -> pd.DataFrame:
     df = pd.read_excel(path, engine="openpyxl")
     df.columns = df.columns.str.lower().str.strip()
+
+    # requiere columnas: fecha, cer
     df["fecha"] = pd.to_datetime(df["fecha"], dayfirst=True).dt.normalize()
     df["cer"] = df["cer"].astype(str).str.replace(",", ".", regex=False)
     df["cer"] = pd.to_numeric(df["cer"], errors="coerce")
-    df = (df.dropna(subset=["fecha","cer"])
-            .sort_values("fecha")
-            .drop_duplicates("fecha", keep="last")
-            .reset_index(drop=True))
+
+    df = (
+        df.dropna(subset=["fecha", "cer"])
+          .sort_values("fecha")
+          .drop_duplicates("fecha", keep="last")
+          .reset_index(drop=True)
+    )
     return df
 
-# 1) intenta local (solo te sirve a vos en tu PC)
+# 1) Local: tu PC
 if CER_LOCAL_PATH.exists():
     cer_df = cargar_cer(CER_LOCAL_PATH)
-    st.sidebar.success("CER cargado desde tu Escritorio (local)")
-# 2) si no, usa el del repo (sirve para todos en web)
+    st.sidebar.success("✅ CER cargado desde tu Escritorio (modo local)")
+# 2) Web / general: archivo en repo
 elif CER_REPO_PATH.exists():
     cer_df = cargar_cer(CER_REPO_PATH)
-    st.sidebar.success("CER cargado desde el repo (web)")
-# 3) opcional: fallback uploader
+    st.sidebar.success("✅ CER cargado desde el repo (modo web)")
+# 3) Si falta todo: cortar con mensaje claro
 else:
-    st.sidebar.warning("No hay CER local ni en repo. Subí CER.xlsx:")
-    cer_file = st.sidebar.file_uploader("Subí CER.xlsx", type=["xlsx", "xls"])
-    if cer_file is None:
-        st.stop()
-    # para uploaded_file no usamos Path, leemos directo
-    cer_df = pd.read_excel(cer_file, engine="openpyxl")
-    cer_df.columns = cer_df.columns.str.lower().str.strip()
-    cer_df["fecha"] = pd.to_datetime(cer_df["fecha"], dayfirst=True).dt.normalize()
-    cer_df["cer"] = cer_df["cer"].astype(str).str.replace(",", ".", regex=False)
-    cer_df["cer"] = pd.to_numeric(cer_df["cer"], errors="coerce")
-    cer_df = (cer_df.dropna(subset=["fecha","cer"])
-                    .sort_values("fecha")
-                    .drop_duplicates("fecha", keep="last")
-                    .reset_index(drop=True))
+    st.sidebar.error("❌ No se encontró CER.xlsx ni en el Escritorio ni en el repo.")
+    st.stop()
+
+st.write("CER filas:", len(cer_df))
+st.write("CER rango:", cer_df["fecha"].min(), "→", cer_df["fecha"].max())
+st.dataframe(cer_df.tail(5), use_container_width=True, height=250)
 
 
 # =========================

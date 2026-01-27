@@ -100,7 +100,7 @@ def rendimiento_real_por_precio(precio: float, factor_cer: float) -> float | Non
         return None
     if precio <= 0:
         return None
-    return (factor_cer / precio - 1) * 100
+    return (precio / factor_cer  - 1) * 100
 
 
 

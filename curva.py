@@ -439,10 +439,14 @@ if df_tf is not None:
                 "pct_change": "% Var"
             })
 
+            row_height = 35
+            max_height = 900
+            height = min(max_height, 40 + len(df_cer_display) * row_height)
+
             st.dataframe(
                 df_cer_display,
                 use_container_width=True,
-                height=650   # probá 600 / 800 / 1000 según pantalla
+                height=height
             )
 
 

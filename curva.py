@@ -6,10 +6,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime, date
 import plotly.graph_objects as go
 from pandas.tseries.offsets import CustomBusinessDay
-
 from pathlib import Path
-import pandas as pd
-import streamlit as st
 
 CER_LOCAL_PATH = Path(r"C:\Users\ssegura\OneDrive - BALANZ\Escritorio\CER.xlsx")
 CER_REPO_PATH  = Path(__file__).parent / "CER.xlsx"
@@ -476,48 +473,70 @@ def generar_flujos_reales(symbol: str, vn=100):
 
     return pd.DataFrame(flujos)
 
-def xirr(fechas, flujos, guess=0.05):
-    fechas = pd.to_datetime(fechas)
-    t0 = fechas.iloc[0]
+def xirr_dates(dates, cashflows, guess=0.05):
+    dates = pd.to_datetime(pd.Series(dates))
+    cfs = pd.Series(cashflows, dtype="float64")
 
-    def npv(rate):
-        return sum(
-            flujos[i] / ((1 + rate) ** ((fechas.iloc[i] - t0).days / 365))
-            for i in range(len(flujos))
-        )
+    t0 = dates.iloc[0]
+    years = (dates - t0).dt.days / 365.0
 
-    rate = guess
-    for _ in range(1000):
-        f = npv(rate)
-        df = sum(
-            -((fechas.iloc[i] - t0).days / 365) * flujos[i] / ((1 + rate) ** (((fechas.iloc[i] - t0).days / 365) + 1))
-            for i in range(len(flujos))
-        )
-        if abs(df) < 1e-10:
+    def npv(r):
+        return (cfs / (1 + r) ** years).sum()
+
+    def dnpv(r):
+        return (-(years) * cfs / (1 + r) ** (years + 1)).sum()
+
+    r = float(guess)
+    for _ in range(100):
+        f = npv(r)
+        df = dnpv(r)
+        if abs(df) < 1e-12:
             break
-        rate = rate - f / df
+        r_new = r - f / df
+        if abs(r_new - r) < 1e-12:
+            r = r_new
+            break
+        r = r_new
 
-    return rate
+    return r
 
-def tir_real_por_flujos(symbol: str, precio: float, vn=100):
+
+def tir_real_por_flujos(symbol: str, precio_nominal: float, cer_liq: float | None, vn=100):
+    symbol = str(symbol).strip().upper()
+
+    if precio_nominal is None or pd.isna(precio_nominal) or float(precio_nominal) <= 0:
+        return None
+
+    # Si no tenés cer_liq disponible todavía, podés devolver None.
+    # (o setear cer_liq=1 para debug)
+    if cer_liq is None or pd.isna(cer_liq) or float(cer_liq) <= 0:
+        return None
+
     cf_df = generar_flujos_reales(symbol, vn=vn)
-
     if cf_df is None or cf_df.empty:
         return None
 
-    # flujos reales
-    flujos = cf_df["flujo_real"].values.tolist()
-    fechas = pd.to_datetime(cf_df["fecha"])
+    # Asegurar tipos
+    cf_df = cf_df.copy()
+    cf_df["fecha"] = pd.to_datetime(cf_df["fecha"], errors="coerce")
+    cf_df["flujo_real"] = pd.to_numeric(cf_df["flujo_real"], errors="coerce")
 
-    # flujo inicial (compra del bono)
-    flujos = [-precio] + flujos.tolist()
-    fechas = pd.concat([pd.Series([pd.Timestamp.today().normalize()]), fechas])
+    cf_df = cf_df.dropna(subset=["fecha", "flujo_real"])
+    if cf_df.empty:
+        return None
+
+    # Convertir precio a "real" para consistencia con flujos reales
+    precio_real = float(precio_nominal) / float(cer_liq)
+
+    fechas = [pd.Timestamp.today().normalize()] + cf_df["fecha"].tolist()
+    flujos = [-precio_real] + cf_df["flujo_real"].astype(float).tolist()
 
     try:
-        tir = xirr(fechas.reset_index(drop=True), pd.Series(flujos))
-        return tir * 100
+        tir = xirr_dates(fechas, flujos)
+        return float(tir) * 100
     except Exception:
         return None
+
 
 
 # =========================
@@ -774,6 +793,24 @@ except Exception as e:
     df_tf = None
     df_cer = None
 
+st.subheader("DEBUG TIR real (1 ticker)")
+
+try:
+    sym = "TX26"
+    r = df_cer[df_cer["symbol"].astype(str).str.upper() == sym].iloc[0]
+
+    st.write("Row:", r[["symbol", "c"]])
+
+    # si usás cer_liq, mostrala también:
+    if "cer_liq" in df_cer.columns:
+        st.write("cer_liq:", r.get("cer_liq"))
+
+    st.write("tir:", tir_real_por_flujos(sym, r.get("c"), r.get("cer_liq"), vn=100))
+
+except Exception as e:
+    st.exception(e)
+    st.stop()
+
 
 df_cer["TIR real CER (%)"] = df_cer.apply(
     lambda row: tir_real_por_flujos(
@@ -798,6 +835,7 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
             "CER rend (%)": out.get("rendimiento_cer_pct"),
             "Liq-10": out.get("f_liq_m10"),
             "Emis-10": out.get("f_emis_m10"),
+            "cer_liq": out.get("cer_liq"),
             "err": out.get("error"),
         })
 
@@ -808,15 +846,18 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
 # RENDIMIENTO REAL POR PRECIO
 # =========================
 
-if df_cer is not None and not df_cer.empty:
-    df_cer["TIR real CER (%)"] = df_cer.apply(
-        lambda row: tir_real_cer(
+def _safe_tir(row):
+    try:
+        return tir_real_por_flujos(
+            row.get("symbol"),
             row.get("c"),
-            row.get("CER factor"),
-            row.get("dias_a_vencimiento")
-        ),
-        axis=1
-    )
+            row.get("cer_liq"),
+            vn=100
+        )
+    except Exception:
+        return None
+
+df_cer["TIR real CER (%)"] = df_cer.apply(_safe_tir, axis=1)
 
 
 

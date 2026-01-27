@@ -14,8 +14,8 @@ import streamlit as st
 CER_LOCAL_PATH = Path(r"C:\Users\ssegura\OneDrive - BALANZ\Escritorio\CER.xlsx")
 CER_REPO_PATH  = Path(__file__).parent / "CER.xlsx"
 
-@st.cache_data(ttl=60*60)
-def cargar_cer(path: Path) -> pd.DataFrame:
+@st.cache_data
+def cargar_cer(path: Path, file_version: float) -> pd.DataFrame:
     df = pd.read_excel(path, engine="openpyxl")
     df.columns = df.columns.str.lower().str.strip()
 
@@ -34,21 +34,16 @@ def cargar_cer(path: Path) -> pd.DataFrame:
 
 # 1) Local: tu PC
 if CER_LOCAL_PATH.exists():
-    cer_df = cargar_cer(CER_LOCAL_PATH)
+    cer_df = cargar_cer(CER_LOCAL_PATH, CER_LOCAL_PATH.stat().st_mtime)
     st.sidebar.success("✅ CER cargado desde tu Escritorio (modo local)")
 # 2) Web / general: archivo en repo
 elif CER_REPO_PATH.exists():
-    cer_df = cargar_cer(CER_REPO_PATH)
+    cer_df = cargar_cer(CER_REPO_PATH, CER_REPO_PATH.stat().st_mtime)
     st.sidebar.success("✅ CER cargado desde el repo (modo web)")
 # 3) Si falta todo: cortar con mensaje claro
 else:
     st.sidebar.error("❌ No se encontró CER.xlsx ni en el Escritorio ni en el repo.")
     st.stop()
-
-st.write("CER filas:", len(cer_df))
-st.write("CER rango:", cer_df["fecha"].min(), "→", cer_df["fecha"].max())
-st.dataframe(cer_df.tail(5), use_container_width=True, height=250)
-
 
 # =========================
 # CONFIG STREAMLIT
@@ -584,6 +579,14 @@ if df_tf is not None:
 """
 git add curva.py
 git commit -m "Arreglo hovertemplate plotly"
+git push
+
+"""
+
+#para modificar excel de CER
+"""
+git add CER.xlsx
+git commit -m "Update CER file"
 git push
 
 """

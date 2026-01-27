@@ -764,7 +764,7 @@ def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
 
 
 
-st.title("Curva de instrumentos en pesos 💸")
+st.title("Curva de instrumentos en pesos ")
 
 try:
     df_tf = instrumentos_tasa_fija()

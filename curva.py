@@ -45,6 +45,59 @@ else:
     st.sidebar.error("❌ No se encontró CER.xlsx ni en el Escritorio ni en el repo.")
     st.stop()
 
+from pandas.tseries.offsets import BDay
+
+def menos_10_habiles(d: date) -> pd.Timestamp:
+    return (pd.Timestamp(d).normalize() - BDay(10))
+
+def cer_en_o_antes(cer_df: pd.DataFrame, fecha: pd.Timestamp) -> float | None:
+    s = cer_df.loc[cer_df["fecha"] <= fecha, "cer"]
+    if s.empty:
+        return None
+    return float(s.iloc[-1])
+
+def rendimiento_cer_bono(symbol: str, cer_df: pd.DataFrame, fecha_emision_map: dict) -> dict:
+    """
+    Devuelve un dict con:
+      - fecha_liq
+      - f_liq_m10 (liq - 10 hábiles)
+      - f_emis_m10 (emisión - 10 hábiles)
+      - cer_liq
+      - cer_emis
+      - factor_cer
+      - rendimiento_cer_pct
+    """
+    if symbol not in fecha_emision_map:
+        return {"error": "No hay fecha de emisión cargada"}
+
+    fecha_liq = (pd.Timestamp.today().normalize() + pd.Timedelta(days=1))  # hoy + 1
+    f_liq_m10 = fecha_liq - BDay(10)
+
+    fecha_emis = fecha_emision_map[symbol]
+    f_emis_m10 = pd.Timestamp(fecha_emis).normalize() - BDay(10)
+
+    cer_liq = cer_en_o_antes(cer_df, f_liq_m10)
+    cer_emis = cer_en_o_antes(cer_df, f_emis_m10)
+
+    if cer_liq is None or cer_emis is None or cer_emis == 0:
+        return {"error": "No se encontró CER para alguna fecha (o cer_emis=0)"}
+
+    factor = cer_liq / cer_emis
+    rend_pct = (factor - 1) * 100
+
+    return {
+        "fecha_liq": fecha_liq.date(),
+        "f_liq_m10": f_liq_m10.date(),
+        "f_emis_m10": f_emis_m10.date(),
+        "cer_liq": cer_liq,
+        "cer_emis": cer_emis,
+        "factor_cer": factor,
+        "rendimiento_cer_pct": rend_pct,
+    }
+
+
+
+
 # =========================
 # CONFIG STREAMLIT
 # =========================
@@ -169,9 +222,75 @@ PAGOS_FINALES = {
     "T30J7":156.04,
 }
 
+FECHA_EMISION = {
+    "TZXM6": date(2024, 4, 30),
+    "TZX26": date(2024, 2, 1),
+    "TX26":  date(2020, 9, 4),
+    "TZXO6": date(2024, 10, 31),
+    "TZXD6": date(2024, 3, 15),
+    "TZXM7": date(2024, 5, 20),
+    "TZXA7": date(2025, 11, 28),
+    "TZXY7": date(2025, 12, 15),
+    "TZX27": date(2024, 2, 1),
+    "TZXD7": date(2024, 3, 15),
+    "TZX28": date(2024, 2, 1),
+    "TX28":  date(2020, 9, 4),
+    "TX31":  date(2022, 5, 31),
+    "DICP":  date(2003, 12, 31),
+    "PARP":  date(2003, 12, 31),
+    "CUAP":  date(2003, 12, 31),
+    "X29Y6": date(2025, 11, 28),
+    "X30N6": date(2025, 12, 15),
+}
+
+
 # =========================
 # HELPERS PARA API
 # =========================
+
+from pandas.tseries.offsets import BDay
+
+def menos_10_habiles(d: date) -> pd.Timestamp:
+    return (pd.Timestamp(d).normalize() - BDay(10))
+
+
+def cer_en_o_antes(cer_df: pd.DataFrame, fecha: pd.Timestamp) -> float | None:
+    s = cer_df.loc[cer_df["fecha"] <= fecha, "cer"]
+    if s.empty:
+        return None
+    return float(s.iloc[-1])
+
+def rendimiento_cer_bono(symbol: str, cer_df: pd.DataFrame, fecha_emision_map: dict) -> dict:
+    if symbol not in fecha_emision_map:
+        return {"error": "No hay fecha de emisión cargada"}
+
+    # fecha de liquidación = hoy + 1
+    fecha_liq = (pd.Timestamp.today().normalize() + pd.Timedelta(days=1))
+    f_liq_m10 = fecha_liq - BDay(10)
+
+    # fecha de emisión
+    fecha_emis = fecha_emision_map[symbol]
+    f_emis_m10 = pd.Timestamp(fecha_emis).normalize() - BDay(10)
+
+    cer_liq = cer_en_o_antes(cer_df, f_liq_m10)
+    cer_emis = cer_en_o_antes(cer_df, f_emis_m10)
+
+    if cer_liq is None or cer_emis is None or cer_emis == 0:
+        return {"error": "No se encontró CER para alguna fecha (o cer_emis=0)"}
+
+    factor = cer_liq / cer_emis
+    rend_pct = (factor - 1) * 100
+
+    return {
+        "fecha_liq": fecha_liq.date(),
+        "f_liq_m10": f_liq_m10.date(),
+        "f_emis_m10": f_emis_m10.date(),
+        "cer_liq": cer_liq,
+        "cer_emis": cer_emis,
+        "factor_cer": factor,
+        "rendimiento_cer_pct": rend_pct,
+    }
+
 
 def _fetch_json(url: str):
     resp = requests.get(url, timeout=10)
@@ -404,6 +523,26 @@ except Exception as e:
     df_tf = None
     df_cer = None
 
+# =========================
+# CALCULO RENDIMIENTO CER
+# =========================
+
+if df_cer is not None and not df_cer.empty and cer_df is not None:
+
+    def _calc(row):
+        out = rendimiento_cer_bono(row["symbol"], cer_df, FECHA_EMISION)
+        return pd.Series({
+            "CER factor": out.get("factor_cer"),
+            "CER rend (%)": out.get("rendimiento_cer_pct"),
+            "Liq-10": out.get("f_liq_m10"),
+            "Emis-10": out.get("f_emis_m10"),
+            "err": out.get("error"),
+        })
+
+    df_cer = df_cer.copy()
+    df_cer[["CER factor","CER rend (%)","Liq-10","Emis-10","err"]] = df_cer.apply(_calc, axis=1)
+
+
 if df_tf is not None:
 
 
@@ -424,7 +563,7 @@ if df_tf is not None:
     col_tabla, col_grafico = st.columns([1.2, 1])
 
     with col_tabla:
-        st.subheader("Tabla de instrumentos con tasas")
+        st.subheader("Tabla de instrumentos TASA FIJA")
 
         columnas_mostrar = [
             "tipo", "symbol", "c",
@@ -467,12 +606,12 @@ if df_tf is not None:
         )
 
 
-        st.subheader("Tabla Bonos/Instrumentos CER")
+        st.subheader("Tabla instrumentos CER")
 
         if df_cer is None or df_cer.empty:
             st.info("No se encontraron instrumentos CER.")
         else:
-            cols_cer = ["tipo", "symbol", "c", "v", "pct_change"]
+            cols_cer = ["tipo","symbol","c","v","pct_change","CER rend (%)","CER factor","Liq-10","Emis-10","err"]
             cols_cer = [c for c in cols_cer if c in df_cer.columns]
 
             df_cer_display = df_cer[cols_cer].copy()

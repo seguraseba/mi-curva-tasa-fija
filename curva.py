@@ -198,6 +198,28 @@ BONOS_CER_TARGET = [
     "X30N6",
 ]
 
+FECHA_VENCIMIENTO = {
+    "TZXM6": date(2026, 3, 31),
+    "TZX26": date(2026, 6, 30),
+    "TX26":  date(2026, 11, 9),
+    "TZXO6": date(2026, 10, 30),
+    "TZXD6": date(2026, 12, 15),
+    "TZXM7": date(2027, 3, 31),
+    "TZXA7": date(2027, 4, 30),
+    "TZXY7": date(2027, 5, 30),
+    "TZX27": date(2027, 6, 30),
+    "TZXD7": date(2027, 12, 15),
+    "TZX28": date(2028, 6, 30),
+    "TX28":  date(2028, 11, 9),
+    "TX31":  date(2031, 11, 30),
+    "DICP":  date(2033, 12, 31),
+    "PARP":  date(2038, 12, 31),
+    "CUAP":  date(2045, 12, 31),
+    "X29Y6": date(2026, 5, 29),
+    "X30N6": date(2026, 11, 30),
+}
+
+
 # =========================
 # SEPARAR TARGETS: TASA FIJA vs CER
 # =========================
@@ -419,10 +441,15 @@ def bonos_cer_lista() -> pd.DataFrame:
     columnas = [c for c in columnas if c in df.columns]
     df = df[columnas].copy()
 
-    # placeholders para compatibilidad con la tabla/merge
+
     if not df.empty:
-        df["vencimiento"] = pd.NaT
-        df["dias_a_vencimiento"] = pd.NA
+    # vencimiento desde diccionario
+        df["vencimiento"] = df["symbol"].apply(lambda s: FECHA_VENCIMIENTO.get(str(s).strip().upper()))
+        df["vencimiento"] = pd.to_datetime(df["vencimiento"])
+
+        hoy = pd.Timestamp.today().normalize()
+        df["dias_a_vencimiento"] = (df["vencimiento"] - hoy).dt.days
+
 
     return df
 
@@ -452,7 +479,7 @@ def instrumentos_cer():
     df = pd.concat([df_letras_cer, df_bonos_cer], ignore_index=True, sort=True)
 
     # Orden: primero los que tienen vencimiento (letras CER), luego bonos CER (sin vencimiento por ahora)
-    df["tiene_vto"] = df["vencimiento"].notna()
+    df = df.sort_values(["vencimiento", "tipo", "symbol"]).reset_index(drop=True)
     df = df.sort_values(["tiene_vto", "vencimiento", "tipo", "symbol"],
                         ascending=[False, True, True, True])
     df = df.drop(columns=["tiene_vto"]).reset_index(drop=True)
@@ -515,6 +542,27 @@ def calcular_tem_desde_tir(row):
 
     return ((1 + tir) ** (1/12) - 1) * 100
 
+def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
+    if precio is None or factor_cer is None or dias is None:
+        return None
+    if pd.isna(precio) or pd.isna(factor_cer) or pd.isna(dias):
+        return None
+
+    try:
+        precio = float(precio)
+        factor_cer = float(factor_cer)
+        dias = int(dias)
+    except Exception:
+        return None
+
+    if precio <= 0 or factor_cer <= 0 or dias <= 0:
+        return None
+
+    vf = 100 * factor_cer  # 100 VN
+    tir = (vf / precio) ** (base_dias / dias) - 1
+    return tir * 100
+
+
 # =========================
 # MAIN APP
 # =========================
@@ -548,6 +596,16 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
     df_cer = df_cer.copy()
     df_cer[["CER factor","CER rend (%)","Liq-10","Emis-10","err"]] = df_cer.apply(_calc, axis=1)
 
+    df_cer["TIR real CER (%)"] = df_cer.apply(
+        lambda row: tir_real_cer(
+            row.get("c"),
+            row.get("CER factor"),
+            row.get("dias_a_vencimiento")
+        ),
+        axis=1
+    )
+
+
 # =========================
 # RENDIMIENTO REAL POR PRECIO
 # =========================
@@ -562,17 +620,28 @@ df_cer["TIR real CER (%)"] = df_cer.apply(
 )
 
 
-def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365) -> float | None:
+def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
     if precio is None or factor_cer is None or dias is None:
         return None
+    if pd.isna(precio) or pd.isna(factor_cer) or pd.isna(dias):
+        return None
+
+    try:
+        precio = float(precio)
+        factor_cer = float(factor_cer)
+        dias = int(dias)
+    except Exception:
+        return None
+
     if precio <= 0 or factor_cer <= 0 or dias <= 0:
         return None
 
-    # VF real por 100 VN
+    # ojo unidades: precio está por 100 VN, entonces VF debe ser por 100 VN
     vf = 100 * factor_cer
 
     tir = (vf / precio) ** (base_dias / dias) - 1
     return tir * 100
+
 
 
 
@@ -645,7 +714,7 @@ if df_tf is not None:
             st.info("No se encontraron instrumentos CER.")
         else:
             
-            cols_cer = ["tipo","symbol","c","v","pct_change","TIR real CER (%)","CER rend (%)","CER factor","Liq-10","Emis-10"]
+            cols_cer = ["tipo","symbol","c","v","pct_change", "dias_a_vencimiento","TIR real CER (%)","CER rend (%)","CER factor","Liq-10","Emis-10","err"]
             cols_cer = [c for c in cols_cer if c in df_cer.columns]
 
             df_cer_display = df_cer[cols_cer].copy()

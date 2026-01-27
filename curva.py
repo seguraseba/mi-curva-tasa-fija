@@ -476,6 +476,49 @@ def generar_flujos_reales(symbol: str, vn=100):
 
     return pd.DataFrame(flujos)
 
+def xirr(fechas, flujos, guess=0.05):
+    fechas = pd.to_datetime(fechas)
+    t0 = fechas.iloc[0]
+
+    def npv(rate):
+        return sum(
+            flujos[i] / ((1 + rate) ** ((fechas.iloc[i] - t0).days / 365))
+            for i in range(len(flujos))
+        )
+
+    rate = guess
+    for _ in range(1000):
+        f = npv(rate)
+        df = sum(
+            -((fechas.iloc[i] - t0).days / 365) * flujos[i] / ((1 + rate) ** (((fechas.iloc[i] - t0).days / 365) + 1))
+            for i in range(len(flujos))
+        )
+        if abs(df) < 1e-10:
+            break
+        rate = rate - f / df
+
+    return rate
+
+def tir_real_por_flujos(symbol: str, precio: float, vn=100):
+    cf_df = generar_flujos_reales(symbol, vn=vn)
+
+    if cf_df is None or cf_df.empty:
+        return None
+
+    # flujos reales
+    flujos = cf_df["flujo_real"].values.tolist()
+    fechas = pd.to_datetime(cf_df["fecha"])
+
+    # flujo inicial (compra del bono)
+    flujos = [-precio] + flujos.tolist()
+    fechas = pd.concat([pd.Series([pd.Timestamp.today().normalize()]), fechas])
+
+    try:
+        tir = xirr(fechas.reset_index(drop=True), pd.Series(flujos))
+        return tir * 100
+    except Exception:
+        return None
+
 
 # =========================
 # LISTAS DE LETRAS Y BONOS
@@ -719,11 +762,6 @@ def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
 # MAIN APP
 # =========================
 
-st.subheader("Test flujos reales TX26")
-
-test_df = generar_flujos_reales("TX26", vn=100)
-if test_df is not None:
-    st.dataframe(test_df, use_container_width=True, height=500)
 
 
 st.title("Curva de instrumentos en pesos 💸")
@@ -735,6 +773,17 @@ except Exception as e:
     st.error(f"Error al cargar datos de instrumentos: {e}")
     df_tf = None
     df_cer = None
+
+
+df_cer["TIR real CER (%)"] = df_cer.apply(
+    lambda row: tir_real_por_flujos(
+        row["symbol"],
+        row["c"],     # precio de mercado
+        vn=100
+    ),
+    axis=1
+)
+
 
 # =========================
 # CALCULO RENDIMIENTO CER

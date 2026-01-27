@@ -8,6 +8,42 @@ import plotly.graph_objects as go
 from pandas.tseries.offsets import CustomBusinessDay
 
 # =========================
+# CARGA CER DESDE EXCEL (UPLOAD)
+# =========================
+
+st.sidebar.header("Coeficiente CER")
+cer_file = st.sidebar.file_uploader("Subí CER.xlsx", type=["xlsx", "xls"])
+
+@st.cache_data(ttl=60*60)
+def cargar_cer_excel(uploaded_file) -> pd.DataFrame:
+    df = pd.read_excel(uploaded_file)
+    df.columns = df.columns.str.lower().str.strip()
+
+    # Requiere columnas: fecha, cer
+    df["fecha"] = pd.to_datetime(df["fecha"], dayfirst=True).dt.normalize()
+
+    # Soporta cer con coma decimal
+    df["cer"] = df["cer"].astype(str).str.replace(",", ".", regex=False)
+    df["cer"] = pd.to_numeric(df["cer"], errors="coerce")
+
+    df = (
+        df.dropna(subset=["fecha", "cer"])
+          .sort_values("fecha")
+          .drop_duplicates("fecha", keep="last")
+          .reset_index(drop=True)
+    )
+    return df
+
+if cer_file is None:
+    st.sidebar.warning("Subí un Excel con columnas: fecha, cer")
+    cer_df = None
+else:
+    cer_df = cargar_cer_excel(cer_file)
+    st.sidebar.success(f"CER cargado ✅ ({len(cer_df)} filas)")
+    st.sidebar.caption(f"Rango: {cer_df['fecha'].min().date()} → {cer_df['fecha'].max().date()}")
+
+
+# =========================
 # CONFIG STREAMLIT
 # =========================
 st.set_page_config(
@@ -357,6 +393,14 @@ def calcular_tem_desde_tir(row):
 # =========================
 
 st.title("Curva de instrumentos en pesos 💸")
+
+st.subheader("Chequeo CER (preview)")
+
+if cer_df is None:
+    st.info("Todavía no cargaste el Excel de CER desde la sidebar.")
+else:
+    st.dataframe(cer_df.tail(10), use_container_width=True, height=350)
+
 
 try:
     df_tf = instrumentos_tasa_fija()

@@ -417,7 +417,17 @@ if df_tf is not None:
             "TEM (%)": "TEM (%)"
         })
 
-        st.dataframe(df_display)
+        # altura dinámica tabla tasa fija
+        row_height = 35
+        max_height = 900
+        height_tf = min(max_height, 40 + len(df_display) * row_height)
+
+        st.dataframe(
+            df_display,
+            use_container_width=True,
+            height=height_tf
+        )
+
 
         st.subheader("Tabla Bonos/Instrumentos CER")
 

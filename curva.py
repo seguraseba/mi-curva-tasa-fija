@@ -7,40 +7,50 @@ from datetime import datetime, date
 import plotly.graph_objects as go
 from pandas.tseries.offsets import CustomBusinessDay
 
-# =========================
-# CARGA CER DESDE EXCEL (UPLOAD)
-# =========================
+from pathlib import Path
+import pandas as pd
+import streamlit as st
 
-st.sidebar.header("Coeficiente CER")
-cer_file = st.sidebar.file_uploader("Subí CER.xlsx", type=["xlsx", "xls"])
+CER_LOCAL_PATH = Path(r"C:\Users\ssegura\OneDrive - BALANZ\Escritorio\CER.xlsx")
+CER_REPO_PATH  = Path(__file__).parent / "CER.xlsx"
 
 @st.cache_data(ttl=60*60)
-def cargar_cer_excel(uploaded_file) -> pd.DataFrame:
-    df = pd.read_excel(uploaded_file)
+def cargar_cer(path: Path) -> pd.DataFrame:
+    df = pd.read_excel(path, engine="openpyxl")
     df.columns = df.columns.str.lower().str.strip()
-
-    # Requiere columnas: fecha, cer
     df["fecha"] = pd.to_datetime(df["fecha"], dayfirst=True).dt.normalize()
-
-    # Soporta cer con coma decimal
     df["cer"] = df["cer"].astype(str).str.replace(",", ".", regex=False)
     df["cer"] = pd.to_numeric(df["cer"], errors="coerce")
-
-    df = (
-        df.dropna(subset=["fecha", "cer"])
-          .sort_values("fecha")
-          .drop_duplicates("fecha", keep="last")
-          .reset_index(drop=True)
-    )
+    df = (df.dropna(subset=["fecha","cer"])
+            .sort_values("fecha")
+            .drop_duplicates("fecha", keep="last")
+            .reset_index(drop=True))
     return df
 
-if cer_file is None:
-    st.sidebar.warning("Subí un Excel con columnas: fecha, cer")
-    cer_df = None
+# 1) intenta local (solo te sirve a vos en tu PC)
+if CER_LOCAL_PATH.exists():
+    cer_df = cargar_cer(CER_LOCAL_PATH)
+    st.sidebar.success("CER cargado desde tu Escritorio (local)")
+# 2) si no, usa el del repo (sirve para todos en web)
+elif CER_REPO_PATH.exists():
+    cer_df = cargar_cer(CER_REPO_PATH)
+    st.sidebar.success("CER cargado desde el repo (web)")
+# 3) opcional: fallback uploader
 else:
-    cer_df = cargar_cer_excel(cer_file)
-    st.sidebar.success(f"CER cargado ✅ ({len(cer_df)} filas)")
-    st.sidebar.caption(f"Rango: {cer_df['fecha'].min().date()} → {cer_df['fecha'].max().date()}")
+    st.sidebar.warning("No hay CER local ni en repo. Subí CER.xlsx:")
+    cer_file = st.sidebar.file_uploader("Subí CER.xlsx", type=["xlsx", "xls"])
+    if cer_file is None:
+        st.stop()
+    # para uploaded_file no usamos Path, leemos directo
+    cer_df = pd.read_excel(cer_file, engine="openpyxl")
+    cer_df.columns = cer_df.columns.str.lower().str.strip()
+    cer_df["fecha"] = pd.to_datetime(cer_df["fecha"], dayfirst=True).dt.normalize()
+    cer_df["cer"] = cer_df["cer"].astype(str).str.replace(",", ".", regex=False)
+    cer_df["cer"] = pd.to_numeric(cer_df["cer"], errors="coerce")
+    cer_df = (cer_df.dropna(subset=["fecha","cer"])
+                    .sort_values("fecha")
+                    .drop_duplicates("fecha", keep="last")
+                    .reset_index(drop=True))
 
 
 # =========================
@@ -393,14 +403,6 @@ def calcular_tem_desde_tir(row):
 # =========================
 
 st.title("Curva de instrumentos en pesos 💸")
-
-st.subheader("Chequeo CER (preview)")
-
-if cer_df is None:
-    st.info("Todavía no cargaste el Excel de CER desde la sidebar.")
-else:
-    st.dataframe(cer_df.tail(10), use_container_width=True, height=350)
-
 
 try:
     df_tf = instrumentos_tasa_fija()

@@ -356,7 +356,7 @@ def calcular_tem_desde_tir(row):
 # MAIN APP
 # =========================
 
-st.title("Curva de instrumentos tasa fija en pesos 💸")
+st.title("Curva de instrumentos en pesos 💸")
 
 try:
     df_tf = instrumentos_tasa_fija()
@@ -439,7 +439,11 @@ if df_tf is not None:
                 "pct_change": "% Var"
             })
 
-            st.dataframe(df_cer_display, use_container_width=True)
+            st.dataframe(
+                df_cer_display,
+                use_container_width=True,
+                height=700   # probá 600 / 800 / 1000 según pantalla
+            )
 
 
 

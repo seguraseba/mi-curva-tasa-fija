@@ -719,6 +719,13 @@ def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
 # MAIN APP
 # =========================
 
+st.subheader("Test flujos reales TX26")
+
+test_df = generar_flujos_reales("TX26", vn=100)
+if test_df is not None:
+    st.dataframe(test_df, use_container_width=True, height=500)
+
+
 st.title("Curva de instrumentos en pesos 💸")
 
 try:
@@ -785,12 +792,6 @@ def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
 
     tir = (vf / precio) ** (base_dias / dias) - 1
     return tir * 100
-
-st.subheader("Test flujos reales TX26")
-
-test_df = generar_flujos_reales("TX26", vn=100)
-if test_df is not None:
-    st.dataframe(test_df, use_container_width=True, height=500)
 
 
 
@@ -962,6 +963,8 @@ if df_tf is not None:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
+        
 
 
 #py -m streamlit run curva.py

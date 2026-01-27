@@ -219,6 +219,59 @@ FECHA_VENCIMIENTO = {
     "X30N6": date(2026, 11, 30),
 }
 
+# =========================
+# REGLAS BONOS CER (MODELO REAL)
+# =========================
+
+BOND_RULES = {
+    "TX26": {
+        "coupon_real": 0.02,
+        "freq": 2,              # semestral
+        "amort_last_n": 5,
+        "daycount": "ACT/ACT",
+    },
+    "TX28": {
+        "coupon_real": 0.0225,
+        "freq": 2,
+        "amort_last_n": 10,
+        "daycount": "ACT/ACT",
+    },
+    "TX31": {
+        "coupon_real": 0.025,
+        "freq": 2,
+        "amort_last_n": 10,
+        "daycount": "ACT/ACT",
+    },
+    "DICP": {
+        "coupon_real": 0.0583,
+        "freq": 2,
+        "amort_last_n": 20,
+        "daycount": "ACT/ACT",
+    },
+    "CUAP": {
+        "coupon_real": 0.0331,
+        "freq": 2,
+        "amort_last_n": 20,
+        "daycount": "ACT/ACT",
+    },
+}
+
+# =========================
+# PARP - CUPONES POR TRAMOS
+# =========================
+
+PARP_RULE = {
+    "freq": 2,
+    "amort_last_n": 20,
+    "daycount": "ACT/ACT",
+    "coupon_tramos": [
+        {"desde": date(2003,12,31), "hasta": date(2009,3,31),  "coupon": 0.0063},
+        {"desde": date(2009,3,31),  "hasta": date(2019,3,31),  "coupon": 0.0118},
+        {"desde": date(2019,3,31),  "hasta": date(2029,3,31),  "coupon": 0.0177},
+        {"desde": date(2029,3,31),  "hasta": date(2038,12,31), "coupon": 0.0248},
+    ]
+}
+
 
 # =========================
 # SEPARAR TARGETS: TASA FIJA vs CER
@@ -324,6 +377,105 @@ def _fetch_json(url: str):
     resp = requests.get(url, timeout=10)
     resp.raise_for_status()
     return resp.json()
+
+from dateutil.relativedelta import relativedelta
+
+def generar_fechas_pago(fecha_emision: date, fecha_venc: date, freq: int):
+    meses = int(12 / freq)
+    fechas = []
+    f = pd.Timestamp(fecha_emision)
+
+    while f < pd.Timestamp(fecha_venc):
+        f = f + relativedelta(months=meses)
+        if f <= pd.Timestamp(fecha_venc):
+            fechas.append(f.normalize())
+
+    return fechas
+
+def generar_flujos_reales(symbol: str, vn=100):
+    symbol = symbol.strip().upper()
+
+    if symbol not in FECHA_EMISION or symbol not in FECHA_VENCIMIENTO:
+        return None
+
+    fecha_emis = FECHA_EMISION[symbol]
+    fecha_venc = FECHA_VENCIMIENTO[symbol]
+
+    # PARP separado
+    if symbol == "PARP":
+        rule = PARP_RULE
+        fechas = generar_fechas_pago(fecha_emis, fecha_venc, rule["freq"])
+
+        n_total = len(fechas)
+        n_amort = rule["amort_last_n"]
+        amort_por_periodo = vn / n_amort
+
+        flujos = []
+        saldo = vn
+
+        for i, f in enumerate(fechas, start=1):
+
+            # cupón por tramo
+            coupon = 0.0
+            for tramo in rule["coupon_tramos"]:
+                if tramo["desde"] <= f.date() < tramo["hasta"]:
+                    coupon = tramo["coupon"]
+                    break
+
+            interes = saldo * coupon / rule["freq"]
+
+            amort = 0
+            if i > n_total - n_amort:
+                amort = amort_por_periodo
+                saldo -= amort
+
+            flujo = interes + amort
+
+            flujos.append({
+                "fecha": f.date(),
+                "interes_real": interes,
+                "amort_real": amort,
+                "flujo_real": flujo,
+                "saldo": saldo
+            })
+
+        return pd.DataFrame(flujos)
+
+    # Bonos normales
+    rule = BOND_RULES.get(symbol)
+    if rule is None:
+        return None
+
+    fechas = generar_fechas_pago(fecha_emis, fecha_venc, rule["freq"])
+
+    n_total = len(fechas)
+    n_amort = rule["amort_last_n"]
+    amort_por_periodo = vn / n_amort
+
+    flujos = []
+    saldo = vn
+
+    for i, f in enumerate(fechas, start=1):
+
+        interes = saldo * rule["coupon_real"] / rule["freq"]
+
+        amort = 0
+        if i > n_total - n_amort:
+            amort = amort_por_periodo
+            saldo -= amort
+
+        flujo = interes + amort
+
+        flujos.append({
+            "fecha": f.date(),
+            "interes_real": interes,
+            "amort_real": amort,
+            "flujo_real": flujo,
+            "saldo": saldo
+        })
+
+    return pd.DataFrame(flujos)
+
 
 # =========================
 # LISTAS DE LETRAS Y BONOS
@@ -634,6 +786,11 @@ def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
     tir = (vf / precio) ** (base_dias / dias) - 1
     return tir * 100
 
+st.subheader("Test flujos reales TX26")
+
+test_df = generar_flujos_reales("TX26", vn=100)
+if test_df is not None:
+    st.dataframe(test_df, use_container_width=True, height=500)
 
 
 

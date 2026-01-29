@@ -781,8 +781,6 @@ def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
 # MAIN APP
 # =========================
 
-
-
 st.title("Curva de instrumentos en pesos ")
 
 try:
@@ -793,37 +791,8 @@ except Exception as e:
     df_tf = None
     df_cer = None
 
-st.subheader("DEBUG TIR real (1 ticker)")
-
-try:
-    sym = "TX26"
-    r = df_cer[df_cer["symbol"].astype(str).str.upper() == sym].iloc[0]
-
-    st.write("Row:", r[["symbol", "c"]])
-
-    # si usás cer_liq, mostrala también:
-    if "cer_liq" in df_cer.columns:
-        st.write("cer_liq:", r.get("cer_liq"))
-
-    st.write("tir:", tir_real_por_flujos(sym, r.get("c"), r.get("cer_liq"), vn=100))
-
-except Exception as e:
-    st.exception(e)
-    st.stop()
-
-
-df_cer["TIR real CER (%)"] = df_cer.apply(
-    lambda row: tir_real_por_flujos(
-        row["symbol"],
-        row["c"],     # precio de mercado
-        vn=100
-    ),
-    axis=1
-)
-
-
 # =========================
-# CALCULO RENDIMIENTO CER
+# CALCULO RENDIMIENTO CER (factor + cer_liq)
 # =========================
 
 if df_cer is not None and not df_cer.empty and cer_df is not None:
@@ -840,10 +809,12 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
         })
 
     df_cer = df_cer.copy()
-    df_cer[["CER factor","CER rend (%)","Liq-10","Emis-10","err"]] = df_cer.apply(_calc, axis=1)
+
+    # IMPORTANTE: acá van 6 columnas (incluye cer_liq)
+    df_cer[["CER factor", "CER rend (%)", "Liq-10", "Emis-10", "cer_liq", "err"]] = df_cer.apply(_calc, axis=1)
 
 # =========================
-# RENDIMIENTO REAL POR PRECIO
+# TIR REAL CER POR FLUJOS (safe, no rompe la app)
 # =========================
 
 def _safe_tir(row):
@@ -857,38 +828,40 @@ def _safe_tir(row):
     except Exception:
         return None
 
-df_cer["TIR real CER (%)"] = df_cer.apply(_safe_tir, axis=1)
+if df_cer is not None and not df_cer.empty:
+    df_cer["TIR real CER (%)"] = df_cer.apply(_safe_tir, axis=1)
 
+# =========================
+# DEBUG TIR (1 ticker) - ahora sí con cer_liq
+# =========================
 
+st.subheader("DEBUG TIR real (1 ticker)")
 
-def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
-    if precio is None or factor_cer is None or dias is None:
-        return None
-    if pd.isna(precio) or pd.isna(factor_cer) or pd.isna(dias):
-        return None
+try:
+    if df_cer is not None and not df_cer.empty:
+        sym = "TX26"
+        r = df_cer[df_cer["symbol"].astype(str).str.upper() == sym].iloc[0]
 
-    try:
-        precio = float(precio)
-        factor_cer = float(factor_cer)
-        dias = int(dias)
-    except Exception:
-        return None
+        cols_show = ["symbol", "c"]
+        if "cer_liq" in df_cer.columns:
+            cols_show.append("cer_liq")
 
-    if precio <= 0 or factor_cer <= 0 or dias <= 0:
-        return None
+        st.write("Row:", r[cols_show])
 
-    # ojo unidades: precio está por 100 VN, entonces VF debe ser por 100 VN
-    vf = 100 * factor_cer
+        st.write("tir:", tir_real_por_flujos(sym, r.get("c"), r.get("cer_liq"), vn=100))
+    else:
+        st.info("df_cer vacío: no hay nada para debug.")
+except Exception as e:
+    st.exception(e)
 
-    tir = (vf / precio) ** (base_dias / dias) - 1
-    return tir * 100
+# =========================
+# TASA FIJA: calcular tasas
+# =========================
 
+if df_tf is not None and not df_tf.empty:
 
+    df_tf = df_tf.copy()
 
-if df_tf is not None:
-
-
-    # Calcular tasas
     df_tf["TNA (%)"] = df_tf.apply(
         lambda row: calcular_tna(row, PAGOS_FINALES),
         axis=1
@@ -900,7 +873,7 @@ if df_tf is not None:
     df_tf["TEM (%)"] = df_tf.apply(calcular_tem_desde_tir, axis=1)
 
     # =========================
-    # LAYOUT: TABLA (IZQ) Y GRÁFICO (DER)
+    # LAYOUT: TABLAS (IZQ) Y GRÁFICO (DER)
     # =========================
     col_tabla, col_grafico = st.columns([1.2, 1])
 
@@ -913,19 +886,15 @@ if df_tf is not None:
             "TNA (%)", "TIR (%)", "TEM (%)"
         ]
 
-        # Copia para mostrar
         df_display = df_tf[columnas_mostrar].copy()
 
-        # Aseguramos tipos numéricos y redondeamos
         for col in ["c", "TNA (%)", "TIR (%)", "TEM (%)"]:
             df_display[col] = pd.to_numeric(df_display[col], errors="coerce").round(2)
 
-        # dias_a_vencimiento como entero
         df_display["dias_a_vencimiento"] = pd.to_numeric(
             df_display["dias_a_vencimiento"], errors="coerce"
         ).astype("Int64")
 
-        # Renombrar columnas para mostrar
         df_display = df_display.rename(columns={
             "tipo": "Tipo",
             "symbol": "Ticker",
@@ -936,7 +905,6 @@ if df_tf is not None:
             "TEM (%)": "TEM (%)"
         })
 
-        # altura dinámica tabla tasa fija
         row_height = 35
         max_height = 900
         height_tf = min(max_height, 40 + len(df_display) * row_height)
@@ -947,19 +915,25 @@ if df_tf is not None:
             height=height_tf
         )
 
-
         st.subheader("Tabla instrumentos CER")
 
         if df_cer is None or df_cer.empty:
             st.info("No se encontraron instrumentos CER.")
         else:
-            
-            cols_cer = ["tipo","symbol","c","v","pct_change", "dias_a_vencimiento","TIR real CER (%)"]
+            cols_cer = ["tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento", "CER factor", "CER rend (%)", "TIR real CER (%)", "err"]
             cols_cer = [c for c in cols_cer if c in df_cer.columns]
 
             df_cer_display = df_cer[cols_cer].copy()
+
             if "c" in df_cer_display.columns:
                 df_cer_display["c"] = pd.to_numeric(df_cer_display["c"], errors="coerce").round(2)
+
+            if "CER factor" in df_cer_display.columns:
+                df_cer_display["CER factor"] = pd.to_numeric(df_cer_display["CER factor"], errors="coerce").round(6)
+
+            for cc in ["CER rend (%)", "TIR real CER (%)"]:
+                if cc in df_cer_display.columns:
+                    df_cer_display[cc] = pd.to_numeric(df_cer_display[cc], errors="coerce").round(4)
 
             df_cer_display = df_cer_display.rename(columns={
                 "tipo": "Tipo",
@@ -979,34 +953,27 @@ if df_tf is not None:
                 height=height
             )
 
-
-
     with col_grafico:
         st.subheader("")
 
-        # Selector de tasa
         tasa_elegida = st.selectbox(
             "Tasa a graficar:",
             ["TIR (%)", "TNA (%)", "TEM (%)"],
             index=0
         )
 
-        # Filtrar datos válidos (evitar NaN y días <= 0)
         df_plot = df_tf.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
         df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
 
         x = df_plot["dias_a_vencimiento"].values
         y = df_plot[tasa_elegida].values
 
-        # Ajuste logarítmico
         a, b = np.polyfit(np.log(x), y, 1)
         x_line = np.linspace(x.min(), x.max(), 300)
         y_line = a * np.log(x_line) + b
 
-        # Figura
         fig = go.Figure()
 
-        # Puntos (scatter), separados por tipo
         tipos = df_plot["tipo"].unique()
         colores = {"LETRA": "blue", "BONO": "red"}
 

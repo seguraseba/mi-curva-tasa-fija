@@ -1089,8 +1089,8 @@ with tab_carry:
         precio_sugerido = float(row["c"]) if row.get("c") is not None and not pd.isna(row.get("c")) else 0.0
         pago_final_sugerido = float(row["pago_final"])
 
-        precio = st.number_input("Precio (cada 100vn)", value=float(round(precio_sugerido, 4)))
-        pago_final = st.number_input("Pago final (cada 100vn)", value=float(round(pago_final_sugerido, 4)))
+        precio = st.number_input("Precio (cada 100vn, precio en vivo por default)", value=float(round(precio_sugerido, 4)))
+        pago_final = st.number_input("Pago final (cada 100vn, no modificar)", value=float(round(pago_final_sugerido, 4)))
 
         comision_pct = st.number_input("Comisión (%)", value=0.50, step=0.05)
 

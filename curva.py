@@ -162,7 +162,7 @@ URL_BONOS  = "https://data912.com/live/arg_bonds"
 URL_LETRAS = "https://data912.com/live/arg_notes"
 
 LETRAS_TARGET = [
-    "S30N6", "S16E6", "S27F6", "S17A6", "S30A6", "S29Y6", "S31G6", "S30O6", "X29Y6", "X30N6",
+    "S30N6", "S16E6", "S27F6","S16M6" "S17A6", "S30A6", "S29Y6", "S31L6", "S31G6", "S30O6", "X29Y6", "X30N6",
 ]
 
 BONOS_TARGET = [
@@ -287,8 +287,10 @@ PAGOS_FINALES = {
     "T30E6":142.22,
     "T13F6":144.97,
     "S27F6":125.84,
+    "S16M6":104.62,
     "S30A6":127.49,
     "S29Y6":132.04,
+    "S31L6":117.68,
     "T30J6":144.90,
     "S31G6":127.06,
     "S30O6":135.28,

@@ -1089,10 +1089,10 @@ with tab_carry:
         precio_sugerido = float(row["c"]) if row.get("c") is not None and not pd.isna(row.get("c")) else 0.0
         pago_final_sugerido = float(row["pago_final"])
 
-        precio = st.number_input("Precio (en pesos, mismo criterio que tu precio 'c')", value=float(round(precio_sugerido, 4)))
-        pago_final = st.number_input("Pago final (en pesos, desde PAGOS_FINALES)", value=float(round(pago_final_sugerido, 4)))
+        precio = st.number_input("Precio (cada 100vn)", value=float(round(precio_sugerido, 4)))
+        pago_final = st.number_input("Pago final (cada 100vn)", value=float(round(pago_final_sugerido, 4)))
 
-        comision_pct = st.number_input("Comisión (%) (se descuenta al inicio)", value=0.50, step=0.05)
+        comision_pct = st.number_input("Comisión (%)", value=0.50, step=0.05)
 
     with colB:
         monto_usd = st.number_input("Monto a invertir (USD)", value=10000.0, step=500.0)
@@ -1104,7 +1104,7 @@ with tab_carry:
         if modo == "Rango":
             tc_min = st.number_input("TC final mínimo", value=float(tc_inicial), step=10.0)
             tc_max = st.number_input("TC final máximo", value=float(tc_inicial * 1.5), step=10.0)
-            n_pts = st.slider("Cantidad de puntos", 10, 200, 50)
+            n_pts = st.slider("Cantidad de puntos (gráfico)", 10, 200, 50)
             tcs_finales = list(np.linspace(tc_min, tc_max, n_pts))
         else:
             txt = st.text_area(
@@ -1174,8 +1174,7 @@ with tab_carry:
     with st.expander("Notas de supuestos (importante)"):
         st.write(
             "- Este módulo asume que 'precio' y 'pago_final' están en la MISMA unidad (típicamente por 100 VN).\n"
-            "- La comisión se descuenta solo al inicio (compra). Si querés comisión también al cierre, lo agregamos.\n"
-            "- Si querés incorporar cupones intermedios (bonos más largos), ahí ya pasamos a flujos y XIRR en USD."
+            "- La comisión se descuenta solo al inicio (compra).\n"
         )
 
         

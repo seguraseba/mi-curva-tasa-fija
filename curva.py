@@ -778,11 +778,12 @@ def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
 
 
 # =========================
-# MAIN APP
+# MAIN APP (CON PESTAÑAS)
 # =========================
 
-st.title("Curva de instrumentos en pesos ")
+st.title("Curva de instrumentos en pesos")
 
+# --- Cargar universos (una sola vez) ---
 try:
     df_tf = instrumentos_tasa_fija()
     df_cer = instrumentos_cer()
@@ -794,7 +795,6 @@ except Exception as e:
 # =========================
 # CALCULO RENDIMIENTO CER (factor + cer_liq)
 # =========================
-
 if df_cer is not None and not df_cer.empty and cer_df is not None:
 
     def _calc(row):
@@ -809,14 +809,11 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
         })
 
     df_cer = df_cer.copy()
-
-    # IMPORTANTE: acá van 6 columnas (incluye cer_liq)
     df_cer[["CER factor", "CER rend (%)", "Liq-10", "Emis-10", "cer_liq", "err"]] = df_cer.apply(_calc, axis=1)
 
 # =========================
 # TIR REAL CER POR FLUJOS (safe, no rompe la app)
 # =========================
-
 def _safe_tir(row):
     try:
         return tir_real_por_flujos(
@@ -832,194 +829,354 @@ if df_cer is not None and not df_cer.empty:
     df_cer["TIR real CER (%)"] = df_cer.apply(_safe_tir, axis=1)
 
 # =========================
-# DEBUG TIR (1 ticker) - ahora sí con cer_liq
-# =========================
-
-st.subheader("DEBUG TIR real (1 ticker)")
-
-try:
-    if df_cer is not None and not df_cer.empty:
-        sym = "TX26"
-        r = df_cer[df_cer["symbol"].astype(str).str.upper() == sym].iloc[0]
-
-        cols_show = ["symbol", "c"]
-        if "cer_liq" in df_cer.columns:
-            cols_show.append("cer_liq")
-
-        st.write("Row:", r[cols_show])
-
-        st.write("tir:", tir_real_por_flujos(sym, r.get("c"), r.get("cer_liq"), vn=100))
-    else:
-        st.info("df_cer vacío: no hay nada para debug.")
-except Exception as e:
-    st.exception(e)
-
-# =========================
 # TASA FIJA: calcular tasas
 # =========================
-
 if df_tf is not None and not df_tf.empty:
 
     df_tf = df_tf.copy()
 
-    df_tf["TNA (%)"] = df_tf.apply(
-        lambda row: calcular_tna(row, PAGOS_FINALES),
-        axis=1
-    )
-    df_tf["TIR (%)"] = df_tf.apply(
-        lambda row: calcular_tir(row, PAGOS_FINALES),
-        axis=1
-    )
+    df_tf["TNA (%)"] = df_tf.apply(lambda row: calcular_tna(row, PAGOS_FINALES), axis=1)
+    df_tf["TIR (%)"] = df_tf.apply(lambda row: calcular_tir(row, PAGOS_FINALES), axis=1)
     df_tf["TEM (%)"] = df_tf.apply(calcular_tem_desde_tir, axis=1)
 
-    # =========================
-    # LAYOUT: TABLAS (IZQ) Y GRÁFICO (DER)
-    # =========================
-    col_tabla, col_grafico = st.columns([1.2, 1])
+# =========================
+# HELPERS CARRY TRADE
+# =========================
+def _get_pago_final(symbol: str) -> float | None:
+    s = str(symbol).strip().upper()
+    v = PAGOS_FINALES.get(s)
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except Exception:
+        return None
 
-    with col_tabla:
-        st.subheader("Tabla de instrumentos TASA FIJA")
+def _simular_carry_trade(
+    monto_usd: float,
+    tc_inicial: float,
+    precio: float,
+    pago_final: float,
+    comision_pct: float,
+    tcs_finales: list[float],
+):
+    """
+    Asume que 'precio' y 'pago_final' están en la MISMA unidad (por 100 VN, típico en pesos).
+    Compra: ARS = USD * TC0, descuenta comisión, compra instrumento al 'precio',
+    cobra 'pago_final' al vencimiento, y convierte a USD con TC final.
+    """
+    if monto_usd <= 0 or tc_inicial <= 0 or precio <= 0 or pago_final <= 0:
+        return None, None
 
-        columnas_mostrar = [
-            "tipo", "symbol", "c",
-            "dias_a_vencimiento",
-            "TNA (%)", "TIR (%)", "TEM (%)"
-        ]
+    ars_inicial = monto_usd * tc_inicial
+    ars_neto = ars_inicial * (1 - comision_pct / 100.0)
 
-        df_display = df_tf[columnas_mostrar].copy()
+    # Retorno en pesos del instrumento (manteniendo unidad precio/pago_final)
+    factor_ars = pago_final / precio
+    ars_final = ars_neto * factor_ars
 
-        for col in ["c", "TNA (%)", "TIR (%)", "TEM (%)"]:
-            df_display[col] = pd.to_numeric(df_display[col], errors="coerce").round(2)
+    # break-even TC final para quedar igual en USD
+    tc_breakeven = ars_final / monto_usd  # USD_final = ars_final / tc_final = monto_usd => tc_final = ars_final/monto_usd
 
-        df_display["dias_a_vencimiento"] = pd.to_numeric(
-            df_display["dias_a_vencimiento"], errors="coerce"
-        ).astype("Int64")
-
-        df_display = df_display.rename(columns={
-            "tipo": "Tipo",
-            "symbol": "Ticker",
-            "c": "Precio",
-            "dias_a_vencimiento": "Días a vencimiento",
-            "TNA (%)": "TNA (%)",
-            "TIR (%)": "TIR (%)",
-            "TEM (%)": "TEM (%)"
+    rows = []
+    for tc_f in tcs_finales:
+        if tc_f <= 0:
+            continue
+        usd_final = ars_final / tc_f
+        retorno_usd_pct = (usd_final / monto_usd - 1) * 100.0
+        rows.append({
+            "TC final": tc_f,
+            "ARS inicial": ars_inicial,
+            "ARS neto (post comisión)": ars_neto,
+            "ARS final (cobro)": ars_final,
+            "USD final": usd_final,
+            "Retorno USD (%)": retorno_usd_pct,
         })
 
-        row_height = 35
-        max_height = 900
-        height_tf = min(max_height, 40 + len(df_display) * row_height)
+    out = pd.DataFrame(rows)
+    return out, tc_breakeven
 
-        st.dataframe(
-            df_display,
-            use_container_width=True,
-            height=height_tf
-        )
 
-        st.subheader("Tabla instrumentos CER")
+# =========================
+# PESTAÑAS
+# =========================
+tab_curvas, tab_carry = st.tabs(["Curvas", "Carry Trade"])
 
-        if df_cer is None or df_cer.empty:
-            st.info("No se encontraron instrumentos CER.")
+
+# =========================
+# TAB 1: CURVAS (TU APP ACTUAL)
+# =========================
+with tab_curvas:
+
+    # --- DEBUG opcional (lo dejo igual, pero dentro de Curvas) ---
+    st.subheader("DEBUG TIR real (1 ticker)")
+    try:
+        if df_cer is not None and not df_cer.empty:
+            sym = "TX26"
+            r = df_cer[df_cer["symbol"].astype(str).str.upper() == sym].iloc[0]
+
+            cols_show = ["symbol", "c"]
+            if "cer_liq" in df_cer.columns:
+                cols_show.append("cer_liq")
+
+            st.write("Row:", r[cols_show])
+            st.write("tir:", tir_real_por_flujos(sym, r.get("c"), r.get("cer_liq"), vn=100))
         else:
-            cols_cer = ["tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento", "CER factor", "CER rend (%)", "TIR real CER (%)", "err"]
-            cols_cer = [c for c in cols_cer if c in df_cer.columns]
+            st.info("df_cer vacío: no hay nada para debug.")
+    except Exception as e:
+        st.exception(e)
 
-            df_cer_display = df_cer[cols_cer].copy()
+    # --- Layout tablas + gráfico (lo tuyo) ---
+    if df_tf is None or df_tf.empty:
+        st.warning("No se encontraron instrumentos tasa fija.")
+    else:
+        col_tabla, col_grafico = st.columns([1.2, 1])
 
-            if "c" in df_cer_display.columns:
-                df_cer_display["c"] = pd.to_numeric(df_cer_display["c"], errors="coerce").round(2)
+        with col_tabla:
+            st.subheader("Tabla de instrumentos TASA FIJA")
 
-            if "CER factor" in df_cer_display.columns:
-                df_cer_display["CER factor"] = pd.to_numeric(df_cer_display["CER factor"], errors="coerce").round(6)
+            columnas_mostrar = [
+                "tipo", "symbol", "c",
+                "dias_a_vencimiento",
+                "TNA (%)", "TIR (%)", "TEM (%)"
+            ]
+            df_display = df_tf[columnas_mostrar].copy()
 
-            for cc in ["CER rend (%)", "TIR real CER (%)"]:
-                if cc in df_cer_display.columns:
-                    df_cer_display[cc] = pd.to_numeric(df_cer_display[cc], errors="coerce").round(4)
+            for col in ["c", "TNA (%)", "TIR (%)", "TEM (%)"]:
+                df_display[col] = pd.to_numeric(df_display[col], errors="coerce").round(2)
 
-            df_cer_display = df_cer_display.rename(columns={
+            df_display["dias_a_vencimiento"] = pd.to_numeric(
+                df_display["dias_a_vencimiento"], errors="coerce"
+            ).astype("Int64")
+
+            df_display = df_display.rename(columns={
                 "tipo": "Tipo",
                 "symbol": "Ticker",
                 "c": "Precio",
-                "v": "Volumen",
-                "pct_change": "% Var"
+                "dias_a_vencimiento": "Días a vencimiento",
+                "TNA (%)": "TNA (%)",
+                "TIR (%)": "TIR (%)",
+                "TEM (%)": "TEM (%)"
             })
 
             row_height = 35
             max_height = 900
-            height = min(max_height, 40 + len(df_cer_display) * row_height)
+            height_tf = min(max_height, 40 + len(df_display) * row_height)
 
-            st.dataframe(
-                df_cer_display,
-                use_container_width=True,
-                height=height
+            st.dataframe(df_display, use_container_width=True, height=height_tf)
+
+            st.subheader("Tabla instrumentos CER")
+
+            if df_cer is None or df_cer.empty:
+                st.info("No se encontraron instrumentos CER.")
+            else:
+                cols_cer = ["tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento",
+                            "CER factor", "CER rend (%)", "TIR real CER (%)", "err"]
+                cols_cer = [c for c in cols_cer if c in df_cer.columns]
+                df_cer_display = df_cer[cols_cer].copy()
+
+                if "c" in df_cer_display.columns:
+                    df_cer_display["c"] = pd.to_numeric(df_cer_display["c"], errors="coerce").round(2)
+                if "CER factor" in df_cer_display.columns:
+                    df_cer_display["CER factor"] = pd.to_numeric(df_cer_display["CER factor"], errors="coerce").round(6)
+
+                for cc in ["CER rend (%)", "TIR real CER (%)"]:
+                    if cc in df_cer_display.columns:
+                        df_cer_display[cc] = pd.to_numeric(df_cer_display[cc], errors="coerce").round(4)
+
+                df_cer_display = df_cer_display.rename(columns={
+                    "tipo": "Tipo",
+                    "symbol": "Ticker",
+                    "c": "Precio",
+                    "v": "Volumen",
+                    "pct_change": "% Var"
+                })
+
+                row_height = 35
+                max_height = 900
+                height = min(max_height, 40 + len(df_cer_display) * row_height)
+                st.dataframe(df_cer_display, use_container_width=True, height=height)
+
+        with col_grafico:
+            tasa_elegida = st.selectbox("Tasa a graficar:", ["TIR (%)", "TNA (%)", "TEM (%)"], index=0)
+
+            df_plot = df_tf.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
+            df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
+
+            x = df_plot["dias_a_vencimiento"].values
+            y = df_plot[tasa_elegida].values
+
+            a, b = np.polyfit(np.log(x), y, 1)
+            x_line = np.linspace(x.min(), x.max(), 300)
+            y_line = a * np.log(x_line) + b
+
+            fig = go.Figure()
+            tipos = df_plot["tipo"].unique()
+            colores = {"LETRA": "blue", "BONO": "red"}
+
+            for tipo in tipos:
+                sub = df_plot[df_plot["tipo"] == tipo]
+                fig.add_trace(go.Scatter(
+                    x=sub["dias_a_vencimiento"],
+                    y=sub[tasa_elegida],
+                    mode="markers",
+                    name=tipo,
+                    marker=dict(size=10, opacity=0.8, color=colores.get(tipo, "gray")),
+                    text=sub["symbol"],
+                    hovertemplate=(
+                        "<b>%{text}</b><br><br>"
+                        "Días: %{x}<br>"
+                        f"{tasa_elegida}: %{{y:.2f}}%<br>"
+                        "Precio: %{customdata[0]:.2f}<br>"
+                        "Vencimiento: %{customdata[1]}<extra></extra>"
+                    ),
+                    customdata=np.stack([
+                        sub["c"].round(2),
+                        sub["vencimiento"].dt.strftime("%Y-%m-%d")
+                    ], axis=-1)
+                ))
+
+            fig.add_trace(go.Scatter(
+                x=x_line,
+                y=y_line,
+                mode="lines",
+                name="Regresión logarítmica",
+                line=dict(color="purple", width=3, dash="dash")
+            ))
+
+            fig.update_layout(
+                title=f"Curva {tasa_elegida}",
+                xaxis_title="Días a vencimiento",
+                yaxis_title=tasa_elegida,
+                hovermode="closest",
+                template="plotly_white",
+                legend=dict(title="Tipo de instrumento")
             )
 
-    with col_grafico:
-        st.subheader("")
+            st.plotly_chart(fig, use_container_width=True)
 
-        tasa_elegida = st.selectbox(
-            "Tasa a graficar:",
-            ["TIR (%)", "TNA (%)", "TEM (%)"],
+
+# =========================
+# TAB 2: CARRY TRADE
+# =========================
+with tab_carry:
+    st.subheader("Emulador de Carry Trade (Tasa fija en pesos → retorno en USD)")
+
+    if df_tf is None or df_tf.empty:
+        st.warning("No hay universo tasa fija cargado.")
+        st.stop()
+
+    # Universo para elegir: solo símbolos que tengan pago_final cargado
+    df_univ = df_tf.copy()
+    df_univ["pago_final"] = df_univ["symbol"].apply(_get_pago_final)
+    df_univ = df_univ.dropna(subset=["pago_final"])
+
+    if df_univ.empty:
+        st.warning("No hay instrumentos tasa fija con pago final cargado en PAGOS_FINALES.")
+        st.stop()
+
+    colA, colB = st.columns([1, 1])
+
+    with colA:
+        ticker = st.selectbox(
+            "Instrumento (tasa fija)",
+            options=df_univ["symbol"].tolist(),
             index=0
         )
 
-        df_plot = df_tf.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
-        df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
+        row = df_univ[df_univ["symbol"] == ticker].iloc[0]
 
-        x = df_plot["dias_a_vencimiento"].values
-        y = df_plot[tasa_elegida].values
+        precio_sugerido = float(row["c"]) if row.get("c") is not None and not pd.isna(row.get("c")) else 0.0
+        pago_final_sugerido = float(row["pago_final"])
 
-        a, b = np.polyfit(np.log(x), y, 1)
-        x_line = np.linspace(x.min(), x.max(), 300)
-        y_line = a * np.log(x_line) + b
+        precio = st.number_input("Precio (en pesos, mismo criterio que tu precio 'c')", value=float(round(precio_sugerido, 4)))
+        pago_final = st.number_input("Pago final (en pesos, desde PAGOS_FINALES)", value=float(round(pago_final_sugerido, 4)))
 
-        fig = go.Figure()
+        comision_pct = st.number_input("Comisión (%) (se descuenta al inicio)", value=0.50, step=0.05)
 
-        tipos = df_plot["tipo"].unique()
-        colores = {"LETRA": "blue", "BONO": "red"}
+    with colB:
+        monto_usd = st.number_input("Monto a invertir (USD)", value=10000.0, step=500.0)
+        tc_inicial = st.number_input("Tipo de cambio inicial (ARS/USD)", value=1100.0, step=10.0)
 
-        for tipo in tipos:
-            sub = df_plot[df_plot["tipo"] == tipo]
+        st.caption("Escenarios de TC final")
+        modo = st.radio("Modo de escenarios", ["Rango", "Manual"], horizontal=True)
 
-            fig.add_trace(go.Scatter(
-                x=sub["dias_a_vencimiento"],
-                y=sub[tasa_elegida],
-                mode="markers",
-                name=tipo,
-                marker=dict(size=10, opacity=0.8, color=colores.get(tipo, "gray")),
-                text=sub["symbol"],  # aparece en hover
-                hovertemplate=(
-                    "<b>%{text}</b><br><br>"
-                    "Días: %{x}<br>"
-                    f"{tasa_elegida}: %{{y:.2f}}%<br>"
-                    "Precio: %{customdata[0]:.2f}<br>"
-                    "Vencimiento: %{customdata[1]}<extra></extra>"
-                ),
-                customdata=np.stack([
-                    sub["c"].round(2),
-                    sub["vencimiento"].dt.strftime("%Y-%m-%d")
-                ], axis=-1)
-            ))
+        if modo == "Rango":
+            tc_min = st.number_input("TC final mínimo", value=float(tc_inicial), step=10.0)
+            tc_max = st.number_input("TC final máximo", value=float(tc_inicial * 1.5), step=10.0)
+            n_pts = st.slider("Cantidad de puntos", 10, 200, 50)
+            tcs_finales = list(np.linspace(tc_min, tc_max, n_pts))
+        else:
+            txt = st.text_area(
+                "Pegá TC finales (uno por línea)",
+                value=f"{tc_inicial}\n{tc_inicial*1.10:.2f}\n{tc_inicial*1.20:.2f}"
+            )
+            tcs_finales = []
+            for line in txt.splitlines():
+                line = line.strip().replace(",", ".")
+                if not line:
+                    continue
+                try:
+                    tcs_finales.append(float(line))
+                except Exception:
+                    pass
 
-        # Línea de regresión logarítmica
-        fig.add_trace(go.Scatter(
-            x=x_line,
-            y=y_line,
-            mode="lines",
-            name="Regresión logarítmica",
-            line=dict(color="purple", width=3, dash="dash")
-        ))
+    df_res, tc_be = _simular_carry_trade(
+        monto_usd=monto_usd,
+        tc_inicial=tc_inicial,
+        precio=precio,
+        pago_final=pago_final,
+        comision_pct=comision_pct,
+        tcs_finales=tcs_finales,
+    )
 
-        # Layout
-        fig.update_layout(
-            title=f"Curva {tasa_elegida} ",
-            xaxis_title="Días a vencimiento",
-            yaxis_title=tasa_elegida,
-            hovermode="closest",
-            template="plotly_white",
-            legend=dict(title="Tipo de instrumento")
+    if df_res is None or df_res.empty:
+        st.error("Revisá inputs: monto, TC, precio y pago final deben ser > 0, y escenarios válidos.")
+        st.stop()
+
+    # KPIs
+    st.markdown("### Resumen")
+    k1, k2, k3 = st.columns(3)
+    k1.metric("TC break-even (ARS/USD)", f"{tc_be:,.2f}")
+    k2.metric("Factor ARS (pago_final/precio)", f"{(pago_final/precio):.6f}")
+    k3.metric("ARS final / USD inicial", f"{( (monto_usd*tc_inicial)*(1-comision_pct/100)*(pago_final/precio) / monto_usd ):,.2f}")
+
+    st.markdown("### Resultados por escenario")
+    df_show = df_res.copy()
+    for c in ["TC final", "ARS inicial", "ARS neto (post comisión)", "ARS final (cobro)", "USD final", "Retorno USD (%)"]:
+        df_show[c] = pd.to_numeric(df_show[c], errors="coerce")
+
+    st.dataframe(
+        df_show[["TC final", "USD final", "Retorno USD (%)", "ARS neto (post comisión)", "ARS final (cobro)"]]
+            .round({"TC final": 2, "USD final": 2, "Retorno USD (%)": 4, "ARS neto (post comisión)": 2, "ARS final (cobro)": 2}),
+        use_container_width=True,
+        height=min(900, 40 + 35 * len(df_show))
+    )
+
+    st.markdown("### Sensibilidad: retorno USD vs TC final")
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(
+        x=df_res["TC final"],
+        y=df_res["Retorno USD (%)"],
+        mode="lines+markers",
+        name="Retorno USD (%)",
+        hovertemplate="TC final: %{x:.2f}<br>Retorno USD: %{y:.4f}%<extra></extra>"
+    ))
+    fig2.add_vline(x=tc_be, line_dash="dash", annotation_text="Break-even", annotation_position="top right")
+    fig2.update_layout(
+        xaxis_title="Tipo de cambio final (ARS/USD)",
+        yaxis_title="Retorno en USD (%)",
+        template="plotly_white",
+        hovermode="closest"
+    )
+    st.plotly_chart(fig2, use_container_width=True)
+
+    with st.expander("Notas de supuestos (importante)"):
+        st.write(
+            "- Este módulo asume que 'precio' y 'pago_final' están en la MISMA unidad (típicamente por 100 VN).\n"
+            "- La comisión se descuenta solo al inicio (compra). Si querés comisión también al cierre, lo agregamos.\n"
+            "- Si querés incorporar cupones intermedios (bonos más largos), ahí ya pasamos a flujos y XIRR en USD."
         )
-
-        st.plotly_chart(fig, use_container_width=True)
 
         
 

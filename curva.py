@@ -8,6 +8,15 @@ import plotly.graph_objects as go
 from pandas.tseries.offsets import CustomBusinessDay
 from pathlib import Path
 
+# =========================
+# CONFIG STREAMLIT
+# =========================
+st.set_page_config(
+    page_title="Curva tasa fija pesos",
+    layout="wide",  # importante para ver tabla y gráfico lado a lado
+)
+
+
 CER_LOCAL_PATH = Path(r"C:\Users\ssegura\OneDrive - BALANZ\Escritorio\CER.xlsx")
 CER_REPO_PATH  = Path(__file__).parent / "CER.xlsx"
 
@@ -101,13 +110,6 @@ def rendimiento_real_por_precio(precio: float, factor_cer: float) -> float | Non
 
 
 
-# =========================
-# CONFIG STREAMLIT
-# =========================
-st.set_page_config(
-    page_title="Curva tasa fija pesos",
-    layout="wide",  # importante para ver tabla y gráfico lado a lado
-)
 
 # =========================
 # MAPEO MES Y VENCIMIENTOS

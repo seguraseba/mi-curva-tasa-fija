@@ -889,10 +889,7 @@ def _safe_tir(row):
         )
     except Exception:
         return None
-"""""
-if df_cer is not None and not df_cer.empty:
-    df_cer["TIR real CER (%)"] = df_cer.apply(_safe_tir, axis=1)
-"""""
+
 # =========================
 # TASA FIJA: calcular tasas
 # =========================

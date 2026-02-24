@@ -991,87 +991,63 @@ with tab_curvas:
     except Exception as e:
         st.exception(e)
 
-    # --- Layout tablas + gráfico (lo tuyo) ---
-    if df_tf is None or df_tf.empty:
-        st.warning("No se encontraron instrumentos tasa fija.")
-    else:
-        col_tabla, col_grafico = st.columns([1.2, 1])
+# --- Layout NUEVO: 2 filas, cada una con tabla (izq) + gráfico (der) ---
 
-        with col_tabla:
-            st.subheader("Tabla de instrumentos TASA FIJA")
+# =========================
+# FILA 1: TASA FIJA
+# =========================
+st.markdown("## Tasa fija")
 
-            columnas_mostrar = [
-                "tipo", "symbol", "c",
-                "dias_a_vencimiento",
-                "TNA (%)", "TIR (%)", "TEM (%)"
-            ]
-            df_display = df_tf[columnas_mostrar].copy()
+if df_tf is None or df_tf.empty:
+    st.warning("No se encontraron instrumentos tasa fija.")
+else:
+    col_tf_tabla, col_tf_graf = st.columns([1.2, 1])
 
-            for col in ["c", "TNA (%)", "TIR (%)", "TEM (%)"]:
-                df_display[col] = pd.to_numeric(df_display[col], errors="coerce").round(2)
+    # --- Tabla TF (izquierda) ---
+    with col_tf_tabla:
+        st.subheader("Tabla de instrumentos TASA FIJA")
 
-            df_display["dias_a_vencimiento"] = pd.to_numeric(
-                df_display["dias_a_vencimiento"], errors="coerce"
-            ).astype("Int64")
+        columnas_mostrar = [
+            "tipo", "symbol", "c",
+            "dias_a_vencimiento",
+            "TNA (%)", "TIR (%)", "TEM (%)"
+        ]
 
-            df_display = df_display.rename(columns={
-                "tipo": "Tipo",
-                "symbol": "Ticker",
-                "c": "Precio",
-                "dias_a_vencimiento": "Días a vencimiento",
-                "TNA (%)": "TNA (%)",
-                "TIR (%)": "TIR (%)",
-                "TEM (%)": "TEM (%)"
-            })
+        df_display = df_tf[columnas_mostrar].copy()
 
-            row_height = 35
-            max_height = 900
-            height_tf = min(max_height, 40 + len(df_display) * row_height)
+        for col in ["c", "TNA (%)", "TIR (%)", "TEM (%)"]:
+            df_display[col] = pd.to_numeric(df_display[col], errors="coerce").round(2)
 
-            st.dataframe(df_display, use_container_width=True, height=height_tf)
+        df_display["dias_a_vencimiento"] = pd.to_numeric(
+            df_display["dias_a_vencimiento"], errors="coerce"
+        ).astype("Int64")
 
-            st.subheader("Tabla instrumentos CER")
+        df_display = df_display.rename(columns={
+            "tipo": "Tipo",
+            "symbol": "Ticker",
+            "c": "Precio",
+            "dias_a_vencimiento": "Días a vencimiento",
+            "TNA (%)": "TNA (%)",
+            "TIR (%)": "TIR (%)",
+            "TEM (%)": "TEM (%)"
+        })
 
-            if df_cer is None or df_cer.empty:
-                st.info("No se encontraron instrumentos CER.")
-            else:
-                cols_cer = ["tipo", "symbol", "c","pct_change", "dias_a_vencimiento","TIR CER cupón cero (%)"]
-                cols_cer = [c for c in cols_cer if c in df_cer.columns]
-                df_cer_display = df_cer[cols_cer].copy()
+        row_height = 35
+        max_height = 650
+        height_tf = min(max_height, 40 + len(df_display) * row_height)
 
-                if "c" in df_cer_display.columns:
-                    df_cer_display["c"] = pd.to_numeric(df_cer_display["c"], errors="coerce").round(2)
+        st.dataframe(df_display, use_container_width=True, height=height_tf)
 
-                if "CER coef" in df_cer_display.columns:
-                    df_cer_display["CER coef"] = pd.to_numeric(df_cer_display["CER coef"], errors="coerce").round(6)
+    # --- Gráfico TF (derecha) ---
+    with col_tf_graf:
+        tasa_elegida = st.selectbox("Tasa a graficar (TF):", ["TIR (%)", "TNA (%)", "TEM (%)"], index=0)
 
-                if "VF CER (cupón cero)" in df_cer_display.columns:
-                    df_cer_display["VF CER (cupón cero)"] = pd.to_numeric(df_cer_display["VF CER (cupón cero)"], errors="coerce").round(6)
+        df_plot = df_tf.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
+        df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
 
-                for cc in ["TIR CER cupón cero (%)"]:
-                    if cc in df_cer_display.columns:
-                        df_cer_display[cc] = pd.to_numeric(df_cer_display[cc], errors="coerce").round(4)
-                
-
-                df_cer_display = df_cer_display.rename(columns={
-                    "tipo": "Tipo",
-                    "symbol": "Ticker",
-                    "c": "Precio",
-                    "v": "Volumen",
-                    "pct_change": "% Var"
-                })
-
-                row_height = 35
-                max_height = 900
-                height = min(max_height, 40 + len(df_cer_display) * row_height)
-                st.dataframe(df_cer_display, use_container_width=True, height=height)
-
-        with col_grafico:
-            tasa_elegida = st.selectbox("Tasa a graficar:", ["TIR (%)", "TNA (%)", "TEM (%)"], index=0)
-
-            df_plot = df_tf.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
-            df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
-
+        if df_plot.empty:
+            st.info("No hay puntos suficientes para graficar tasa fija.")
+        else:
             x = df_plot["dias_a_vencimiento"].values
             y = df_plot[tasa_elegida].values
 
@@ -1080,6 +1056,7 @@ with tab_curvas:
             y_line = a * np.log(x_line) + b
 
             fig = go.Figure()
+
             tipos = df_plot["tipo"].unique()
             colores = {"LETRA": "blue", "BONO": "red"}
 
@@ -1114,7 +1091,7 @@ with tab_curvas:
             ))
 
             fig.update_layout(
-                title=f"Curva {tasa_elegida}",
+                title=f"Curva {tasa_elegida} (TF)",
                 xaxis_title="Días a vencimiento",
                 yaxis_title=tasa_elegida,
                 hovermode="closest",
@@ -1124,6 +1101,112 @@ with tab_curvas:
 
             st.plotly_chart(fig, use_container_width=True)
 
+# =========================
+# FILA 2: CER (cupón cero)
+# =========================
+st.markdown("## CER (cupón cero)")
+
+if df_cer is None or df_cer.empty:
+    st.info("No se encontraron instrumentos CER.")
+else:
+    col_cer_tabla, col_cer_graf = st.columns([1.2, 1])
+
+    # --- Tabla CER (izquierda) ---
+    with col_cer_tabla:
+        st.subheader("Tabla instrumentos CER")
+
+        cols_cer = [
+            "tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento",
+            "TIR CER cupón cero (%)"
+        ]
+        cols_cer = [c for c in cols_cer if c in df_cer.columns]
+
+        df_cer_display = df_cer[cols_cer].copy()
+
+        if "c" in df_cer_display.columns:
+            df_cer_display["c"] = pd.to_numeric(df_cer_display["c"], errors="coerce").round(2)
+
+        if "TIR CER cupón cero (%)" in df_cer_display.columns:
+            df_cer_display["TIR CER cupón cero (%)"] = pd.to_numeric(
+                df_cer_display["TIR CER cupón cero (%)"], errors="coerce"
+            ).round(4)
+
+        df_cer_display = df_cer_display.rename(columns={
+            "tipo": "Tipo",
+            "symbol": "Ticker",
+            "c": "Precio",
+            "v": "Volumen",
+            "pct_change": "% Var",
+            "dias_a_vencimiento": "Días a vencimiento",
+            "TIR CER cupón cero (%)": "TIR CER (%)",
+        })
+
+        row_height = 35
+        max_height = 650
+        height_cer = min(max_height, 40 + len(df_cer_display) * row_height)
+
+        st.dataframe(df_cer_display, use_container_width=True, height=height_cer)
+
+    # --- Gráfico CER (derecha) ---
+    with col_cer_graf:
+        tir_col = "TIR CER cupón cero (%)"
+
+        df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
+        df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
+
+        if df_plot.empty:
+            st.info("No hay puntos CER con TIR y días a vencimiento.")
+        else:
+            x = df_plot["dias_a_vencimiento"].astype(float).values
+            y = pd.to_numeric(df_plot[tir_col], errors="coerce").astype(float).values
+
+            a, b = np.polyfit(np.log(x), y, 1)
+            x_line = np.linspace(x.min(), x.max(), 300)
+            y_line = a * np.log(x_line) + b
+
+            fig = go.Figure()
+
+            colores = {"LETRA CER": "blue", "BONO CER": "red"}
+            for tipo in df_plot["tipo"].unique():
+                sub = df_plot[df_plot["tipo"] == tipo]
+                fig.add_trace(go.Scatter(
+                    x=sub["dias_a_vencimiento"],
+                    y=sub[tir_col],
+                    mode="markers",
+                    name=tipo,
+                    marker=dict(size=10, opacity=0.8, color=colores.get(tipo, "gray")),
+                    text=sub["symbol"],
+                    hovertemplate=(
+                        "<b>%{text}</b><br><br>"
+                        "Días: %{x}<br>"
+                        "TIR CER: %{y:.2f}%<br>"
+                        "Precio: %{customdata[0]:.2f}<br>"
+                        "Vencimiento: %{customdata[1]}<extra></extra>"
+                    ),
+                    customdata=np.stack([
+                        pd.to_numeric(sub["c"], errors="coerce").round(2),
+                        pd.to_datetime(sub["vencimiento"]).dt.strftime("%Y-%m-%d")
+                    ], axis=-1)
+                ))
+
+            fig.add_trace(go.Scatter(
+                x=x_line,
+                y=y_line,
+                mode="lines",
+                name="Regresión logarítmica",
+                line=dict(color="purple", width=3, dash="dash")
+            ))
+
+            fig.update_layout(
+                title="Curva TIR CER (cupón cero)",
+                xaxis_title="Días a vencimiento",
+                yaxis_title="TIR CER (%)",
+                hovermode="closest",
+                template="plotly_white",
+                legend=dict(title="Tipo de instrumento")
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
 
 # =========================
 # TAB 2: CARRY TRADE

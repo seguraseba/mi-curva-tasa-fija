@@ -820,7 +820,7 @@ except Exception as e:
     df_cer = None
 
 # =========================
-# CER cupón cero (para BONOS CER que NO son especiales)
+# CER cupón cero (para BONOS CER y LETRAS CER que NO son especiales)
 # =========================
 if df_cer is not None and not df_cer.empty and cer_df is not None:
 
@@ -829,7 +829,7 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
 
     # Bonos CER que son "cupón cero": excluimos especiales
     mask_cupon_cero = (
-        (df_cer["tipo"] == "BONO CER")
+        (df_cer["tipo"].isin(["BONO CER", "LETRA CER"]))
         & (~df_cer["sym_u"].isin(CER_ESPECIALES_CON_FLUJOS))
     )
 

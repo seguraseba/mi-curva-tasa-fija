@@ -228,7 +228,7 @@ URL_BONOS  = "https://data912.com/live/arg_bonds"
 URL_LETRAS = "https://data912.com/live/arg_notes"
 
 LETRAS_TARGET = [
-    "S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S29Y6", "S31L6", "S31G6", "S30O6", "X29Y6", "X30N6",
+    "S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S29Y6", "S31L6", "S31G6", "S30O6", "X29Y6", "X30N6", "X31L6"
 ]
 
 BONOS_TARGET = [
@@ -259,6 +259,7 @@ BONOS_CER_TARGET = [
     "TZXY7",
     "X29Y6",
     "X30N6",
+    "X31L6",
 ]
 
 FECHA_VENCIMIENTO = {
@@ -280,6 +281,7 @@ FECHA_VENCIMIENTO = {
     "CUAP":  date(2045, 12, 31),
     "X29Y6": date(2026, 5, 29),
     "X30N6": date(2026, 11, 30),
+    "X31L6": date(2026, 7, 31),
 }
 
 # =========================
@@ -387,6 +389,7 @@ FECHA_EMISION = {
     "CUAP":  date(2003, 12, 31),
     "X29Y6": date(2025, 11, 28),
     "X30N6": date(2025, 12, 15),
+    "X31L6": date(2026, 1, 30),
 }
 
 CER_ESPECIALES_CON_FLUJOS = {"DICP", "PARP", "CUAP", "TX26", "TX28", "TX31"}

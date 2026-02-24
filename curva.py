@@ -101,6 +101,70 @@ def rendimiento_cer_bono(symbol: str, cer_df: pd.DataFrame, fecha_emision_map: d
         "rendimiento_cer_pct": rend_pct,
     }
 
+def cer_coef_desde_emision(symbol: str, cer_df: pd.DataFrame, fecha_emision_map: dict) -> dict:
+    symbol = str(symbol).strip().upper()
+
+    if symbol not in fecha_emision_map:
+        return {"error": "No hay fecha de emisión cargada"}
+
+    # liquidación = hoy + 1
+    fecha_liq = (pd.Timestamp.today().normalize() + pd.Timedelta(days=1))
+    f_liq_m10 = fecha_liq - BDay(10)
+
+    fecha_emis = fecha_emision_map[symbol]
+    f_emis_m10 = pd.Timestamp(fecha_emis).normalize() - BDay(10)
+
+    cer_liq = cer_en_o_antes(cer_df, f_liq_m10)
+    cer_emis = cer_en_o_antes(cer_df, f_emis_m10)
+
+    if cer_liq is None or cer_emis is None or cer_emis == 0:
+        return {"error": "No se encontró CER para alguna fecha (o cer_emis=0)"}
+
+    coef = float(cer_liq) / float(cer_emis)
+    vf = 100.0 * coef  # único flujo cupón cero
+
+    return {
+        "liq_m10": f_liq_m10.date(),
+        "emis_m10": f_emis_m10.date(),
+        "cer_liq": float(cer_liq),
+        "cer_emis": float(cer_emis),
+        "cer_coef": coef,
+        "vf_cupon_cero": vf,
+        "error": None,
+    }
+
+
+def tir_cer_cupon_cero(precio: float, vf: float, dias: int, base_dias=365) -> float | None:
+    if precio is None or vf is None or dias is None:
+        return None
+    if pd.isna(precio) or pd.isna(vf) or pd.isna(dias):
+        return None
+    try:
+        precio = float(precio)
+        vf = float(vf)
+        dias = int(dias)
+    except Exception:
+        return None
+    if precio <= 0 or vf <= 0 or dias <= 0:
+        return None
+    return (((vf / precio) ** (base_dias / dias)) - 1) * 100
+
+
+def tna_cer_cupon_cero(precio: float, vf: float, dias: int, base_dias=365) -> float | None:
+    if precio is None or vf is None or dias is None:
+        return None
+    if pd.isna(precio) or pd.isna(vf) or pd.isna(dias):
+        return None
+    try:
+        precio = float(precio)
+        vf = float(vf)
+        dias = int(dias)
+    except Exception:
+        return None
+    if precio <= 0 or vf <= 0 or dias <= 0:
+        return None
+    return ((vf / precio - 1) / dias) * base_dias * 100
+
 def rendimiento_real_por_precio(precio: float, factor_cer: float) -> float | None:
     if precio is None or factor_cer is None:
         return None
@@ -325,54 +389,13 @@ FECHA_EMISION = {
     "X30N6": date(2025, 12, 15),
 }
 
+CER_ESPECIALES_CON_FLUJOS = {"DICP", "PARP", "CUAP", "TX26", "TX28", "TX31"}
 
 # =========================
 # HELPERS PARA API
 # =========================
 
 from pandas.tseries.offsets import BDay
-
-def menos_10_habiles(d: date) -> pd.Timestamp:
-    return (pd.Timestamp(d).normalize() - BDay(10))
-
-
-def cer_en_o_antes(cer_df: pd.DataFrame, fecha: pd.Timestamp) -> float | None:
-    s = cer_df.loc[cer_df["fecha"] <= fecha, "cer"]
-    if s.empty:
-        return None
-    return float(s.iloc[-1])
-
-def rendimiento_cer_bono(symbol: str, cer_df: pd.DataFrame, fecha_emision_map: dict) -> dict:
-    if symbol not in fecha_emision_map:
-        return {"error": "No hay fecha de emisión cargada"}
-
-    # fecha de liquidación = hoy + 1
-    fecha_liq = (pd.Timestamp.today().normalize() + pd.Timedelta(days=1))
-    f_liq_m10 = fecha_liq - BDay(10)
-
-    # fecha de emisión
-    fecha_emis = fecha_emision_map[symbol]
-    f_emis_m10 = pd.Timestamp(fecha_emis).normalize() - BDay(10)
-
-    cer_liq = cer_en_o_antes(cer_df, f_liq_m10)
-    cer_emis = cer_en_o_antes(cer_df, f_emis_m10)
-
-    if cer_liq is None or cer_emis is None or cer_emis == 0:
-        return {"error": "No se encontró CER para alguna fecha (o cer_emis=0)"}
-
-    factor = cer_liq / cer_emis
-    rend_pct = (factor - 1) * 100
-
-    return {
-        "fecha_liq": fecha_liq.date(),
-        "f_liq_m10": f_liq_m10.date(),
-        "f_emis_m10": f_emis_m10.date(),
-        "cer_liq": cer_liq,
-        "cer_emis": cer_emis,
-        "factor_cer": factor,
-        "rendimiento_cer_pct": rend_pct,
-    }
-
 
 def _fetch_json(url: str):
     resp = requests.get(url, timeout=10)
@@ -797,23 +820,61 @@ except Exception as e:
     df_cer = None
 
 # =========================
-# CALCULO RENDIMIENTO CER (factor + cer_liq)
+# CER cupón cero (para BONOS CER que NO son especiales)
 # =========================
 if df_cer is not None and not df_cer.empty and cer_df is not None:
 
-    def _calc(row):
-        out = rendimiento_cer_bono(row["symbol"], cer_df, FECHA_EMISION)
+    df_cer = df_cer.copy()
+    df_cer["sym_u"] = df_cer["symbol"].astype(str).str.upper()
+
+    # Bonos CER que son "cupón cero": excluimos especiales
+    mask_cupon_cero = (
+        (df_cer["tipo"] == "BONO CER")
+        & (~df_cer["sym_u"].isin(CER_ESPECIALES_CON_FLUJOS))
+    )
+
+    def _calc_cupon_cero(row):
+        out = cer_coef_desde_emision(row["sym_u"], cer_df, FECHA_EMISION)
+
+        if out.get("error"):
+            return pd.Series({
+                "CER coef": None,
+                "VF CER (cupón cero)": None,
+                "CER liq-10": None,
+                "CER emis-10": None,
+                "CER liq": None,
+                "CER emis": None,
+                "TIR CER cupón cero (%)": None,
+                "TNA CER cupón cero (%)": None,
+                "err_cer": out.get("error"),
+            })
+
+        precio = row.get("c")
+        dias = row.get("dias_a_vencimiento")
+        vf = out["vf_cupon_cero"]
+
         return pd.Series({
-            "CER factor": out.get("factor_cer"),
-            "CER rend (%)": out.get("rendimiento_cer_pct"),
-            "Liq-10": out.get("f_liq_m10"),
-            "Emis-10": out.get("f_emis_m10"),
-            "cer_liq": out.get("cer_liq"),
-            "err": out.get("error"),
+            "CER coef": out["cer_coef"],
+            "VF CER (cupón cero)": vf,
+            "CER liq-10": out["liq_m10"],
+            "CER emis-10": out["emis_m10"],
+            "CER liq": out["cer_liq"],
+            "CER emis": out["cer_emis"],
+            "TIR CER cupón cero (%)": tir_cer_cupon_cero(precio, vf, dias),
+            "TNA CER cupón cero (%)": tna_cer_cupon_cero(precio, vf, dias),
+            "err_cer": None,
         })
 
-    df_cer = df_cer.copy()
-    df_cer[["CER factor", "CER rend (%)", "Liq-10", "Emis-10", "cer_liq", "err"]] = df_cer.apply(_calc, axis=1)
+    # Calculamos SOLO donde corresponde
+    df_cer.loc[mask_cupon_cero, [
+        "CER coef", "VF CER (cupón cero)",
+        "CER liq-10", "CER emis-10",
+        "CER liq", "CER emis",
+        "TIR CER cupón cero (%)", "TNA CER cupón cero (%)",
+        "err_cer"
+    ]] = df_cer.loc[mask_cupon_cero].apply(_calc_cupon_cero, axis=1)
+
+    df_cer = df_cer.drop(columns=["sym_u"])
 
 # =========================
 # TIR REAL CER POR FLUJOS (safe, no rompe la app)
@@ -828,10 +889,10 @@ def _safe_tir(row):
         )
     except Exception:
         return None
-
+"""""
 if df_cer is not None and not df_cer.empty:
     df_cer["TIR real CER (%)"] = df_cer.apply(_safe_tir, axis=1)
-
+"""""
 # =========================
 # TASA FIJA: calcular tasas
 # =========================
@@ -974,19 +1035,25 @@ with tab_curvas:
             if df_cer is None or df_cer.empty:
                 st.info("No se encontraron instrumentos CER.")
             else:
-                cols_cer = ["tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento",
-                            "CER factor", "CER rend (%)", "TIR real CER (%)", "err"]
+                cols_cer = ["tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento", 
+                            "CER coef", "VF CER (cupón cero)", 
+                            "TIR CER cupón cero (%)", "TNA CER cupón cero (%)","err_cer"]
                 cols_cer = [c for c in cols_cer if c in df_cer.columns]
                 df_cer_display = df_cer[cols_cer].copy()
 
                 if "c" in df_cer_display.columns:
                     df_cer_display["c"] = pd.to_numeric(df_cer_display["c"], errors="coerce").round(2)
-                if "CER factor" in df_cer_display.columns:
-                    df_cer_display["CER factor"] = pd.to_numeric(df_cer_display["CER factor"], errors="coerce").round(6)
 
-                for cc in ["CER rend (%)", "TIR real CER (%)"]:
+                if "CER coef" in df_cer_display.columns:
+                    df_cer_display["CER coef"] = pd.to_numeric(df_cer_display["CER coef"], errors="coerce").round(6)
+
+                if "VF CER (cupón cero)" in df_cer_display.columns:
+                    df_cer_display["VF CER (cupón cero)"] = pd.to_numeric(df_cer_display["VF CER (cupón cero)"], errors="coerce").round(6)
+
+                for cc in ["TIR CER cupón cero (%)", "TNA CER cupón cero (%)"]:
                     if cc in df_cer_display.columns:
                         df_cer_display[cc] = pd.to_numeric(df_cer_display[cc], errors="coerce").round(4)
+                
 
                 df_cer_display = df_cer_display.rename(columns={
                     "tipo": "Tipo",

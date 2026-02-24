@@ -970,14 +970,12 @@ tab_curvas, tab_carry = st.tabs(["Curvas", "Carry Trade"])
 # =========================
 with tab_curvas:
 
-    # --- DEBUG opcional (lo dejo igual, pero dentro de Curvas) ---
-
 # --- Layout NUEVO: 2 filas, cada una con tabla (izq) + gráfico (der) ---
 
 # =========================
 # FILA 1: TASA FIJA
 # =========================
-st.markdown("## Tasa fija")
+    st.markdown("## Tasa fija")
 
 if df_tf is None or df_tf.empty:
     st.warning("No se encontraron instrumentos tasa fija.")

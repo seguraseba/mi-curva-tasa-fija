@@ -1035,7 +1035,7 @@ with tab_curvas:
             if df_cer is None or df_cer.empty:
                 st.info("No se encontraron instrumentos CER.")
             else:
-                cols_cer = ["tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento","TIR CER cupón cero (%)"]
+                cols_cer = ["tipo", "symbol", "c","pct_change", "dias_a_vencimiento","TIR CER cupón cero (%)"]
                 cols_cer = [c for c in cols_cer if c in df_cer.columns]
                 df_cer_display = df_cer[cols_cer].copy()
 

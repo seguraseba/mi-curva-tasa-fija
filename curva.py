@@ -971,22 +971,6 @@ tab_curvas, tab_carry = st.tabs(["Curvas", "Carry Trade"])
 with tab_curvas:
 
     # --- DEBUG opcional (lo dejo igual, pero dentro de Curvas) ---
-    st.subheader("DEBUG TIR real (1 ticker)")
-    try:
-        if df_cer is not None and not df_cer.empty:
-            sym = "TX26"
-            r = df_cer[df_cer["symbol"].astype(str).str.upper() == sym].iloc[0]
-
-            cols_show = ["symbol", "c"]
-            if "cer_liq" in df_cer.columns:
-                cols_show.append("cer_liq")
-
-            st.write("Row:", r[cols_show])
-            st.write("tir:", tir_real_por_flujos(sym, r.get("c"), r.get("cer_liq"), vn=100))
-        else:
-            st.info("df_cer vacío: no hay nada para debug.")
-    except Exception as e:
-        st.exception(e)
 
 # --- Layout NUEVO: 2 filas, cada una con tabla (izq) + gráfico (der) ---
 

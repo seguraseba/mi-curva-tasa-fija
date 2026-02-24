@@ -1035,9 +1035,7 @@ with tab_curvas:
             if df_cer is None or df_cer.empty:
                 st.info("No se encontraron instrumentos CER.")
             else:
-                cols_cer = ["tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento", 
-                            "CER coef", "VF CER (cupón cero)", 
-                            "TIR CER cupón cero (%)", "TNA CER cupón cero (%)","err_cer"]
+                cols_cer = ["tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento","TIR CER (%)"]
                 cols_cer = [c for c in cols_cer if c in df_cer.columns]
                 df_cer_display = df_cer[cols_cer].copy()
 
@@ -1050,7 +1048,7 @@ with tab_curvas:
                 if "VF CER (cupón cero)" in df_cer_display.columns:
                     df_cer_display["VF CER (cupón cero)"] = pd.to_numeric(df_cer_display["VF CER (cupón cero)"], errors="coerce").round(6)
 
-                for cc in ["TIR CER cupón cero (%)", "TNA CER cupón cero (%)"]:
+                for cc in ["TIR CER (%)"]:
                     if cc in df_cer_display.columns:
                         df_cer_display[cc] = pd.to_numeric(df_cer_display[cc], errors="coerce").round(4)
                 

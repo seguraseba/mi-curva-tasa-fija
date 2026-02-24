@@ -1083,7 +1083,7 @@ else:
 # =========================
 # FILA 2: CER (cupón cero)
 # =========================
-st.markdown("## CER (cupón cero)")
+st.markdown("## CER)")
 
 if df_cer is None or df_cer.empty:
     st.info("No se encontraron instrumentos CER.")

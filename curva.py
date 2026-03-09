@@ -1380,8 +1380,8 @@ with tab_spreads:
                     nuevo = pd.DataFrame([{
                         "ticker": ticker,
                         "legislacion": legislacion,
-                        "tipo_bono": tipo_bono,
                         "par": par,
+                        "tipo_precio": tipo_precio,
                         "comentario": comentario
                     }])
 

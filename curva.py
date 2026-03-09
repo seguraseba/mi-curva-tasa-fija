@@ -20,6 +20,9 @@ st.set_page_config(
 CER_LOCAL_PATH = Path(r"C:\Users\ssegura\OneDrive - BALANZ\Escritorio\CER.xlsx")
 CER_REPO_PATH  = Path(__file__).parent / "CER.xlsx"
 
+CORPOS_LOCAL_PATH = Path(r"C:\Users\ssegura\OneDrive - BALANZ\Escritorio\corpos.xlsx")
+CORPOS_REPO_PATH  = Path(__file__).parent / "corpos.xlsx"
+
 @st.cache_data
 def cargar_cer(path: Path, file_version: float) -> pd.DataFrame:
     df = pd.read_excel(path, engine="openpyxl")
@@ -38,6 +41,21 @@ def cargar_cer(path: Path, file_version: float) -> pd.DataFrame:
     )
     return df
 
+@st.cache_data
+def cargar_corpos(path: Path, file_version: float) -> pd.DataFrame:
+    # header=1 porque:
+    # fila 1 = título
+    # fila 2 = encabezados reales
+    df = pd.read_excel(path, sheet_name="Hoja1", header=1, engine="openpyxl")
+
+    # eliminar filas completamente vacías
+    df = df.dropna(how="all").reset_index(drop=True)
+
+    # limpiar nombres de columnas
+    df.columns = [str(c).strip() for c in df.columns]
+
+    return df
+
 # 1) Local: tu PC
 if CER_LOCAL_PATH.exists():
     cer_df = cargar_cer(CER_LOCAL_PATH, CER_LOCAL_PATH.stat().st_mtime)
@@ -50,6 +68,19 @@ elif CER_REPO_PATH.exists():
 else:
     st.sidebar.error("❌ No se encontró CER.xlsx ni en el Escritorio ni en el repo.")
     st.stop()
+
+# =========================
+# CARGA EXCEL CORPORATIVOS
+# =========================
+if CORPOS_LOCAL_PATH.exists():
+    corpos_df = cargar_corpos(CORPOS_LOCAL_PATH, CORPOS_LOCAL_PATH.stat().st_mtime)
+    st.sidebar.success("✅ Corporativos cargados desde tu Escritorio")
+elif CORPOS_REPO_PATH.exists():
+    corpos_df = cargar_corpos(CORPOS_REPO_PATH, CORPOS_REPO_PATH.stat().st_mtime)
+    st.sidebar.success("✅ Corporativos cargados desde el repo")
+else:
+    corpos_df = pd.DataFrame()
+    st.sidebar.warning("⚠️ No se encontró corpos.xlsx")
 
 from pandas.tseries.offsets import BDay
 
@@ -1126,8 +1157,8 @@ if "bonos_spread" not in st.session_state:
 # PESTAÑAS
 # =========================
 
-tab_curvas, tab_carry, tab_spreads, tab_leg = st.tabs(
-    ["Curvas", "Carry Trade", "Bonos / Spreads", "Spread Legislación"]
+tab_curvas, tab_carry, tab_spreads, tab_leg, tab_corpos = st.tabs(
+    ["Curvas", "Carry Trade", "Bonos / Spreads", "Spread Legislación", "Corporativos"]
 )
 
 # =========================
@@ -1731,6 +1762,32 @@ with tab_leg:
             height=min(500, 40 + 35 * len(df_show))
         )
 
+# =========================
+# TAB 5: CORPORATIVOS
+# =========================
+with tab_corpos:
+    st.subheader("Bonos corporativos en dólares")
+
+    if corpos_df is None or corpos_df.empty:
+        st.info("No se pudo cargar la tabla de corporativos.")
+    else:
+        df_corpos_show = corpos_df.copy()
+
+        # opcional: renombrar algunas columnas si querés que se vean más limpias
+        df_corpos_show = df_corpos_show.rename(columns={
+            "Precio Dirty (MEP)": "Dirty (MEP)",
+            "Precio Clean (MEP)": "Clean (MEP)",
+            "TIR Efectiva": "TIR Efectiva",
+            "YTW (TNA)": "YTW (TNA)"
+        })
+
+        st.dataframe(
+            df_corpos_show,
+            use_container_width=True,
+            hide_index=True,
+            height=min(900, 40 + 35 * len(df_corpos_show))
+        )
+
 #py -m streamlit run curva.py
 #cd "C:\Users\ssegura\OneDrive - BALANZ\Escritorio\curvas"
 
@@ -1748,3 +1805,4 @@ git commit -m "Update CER file"
 git push
 
 """
+

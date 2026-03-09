@@ -1705,16 +1705,14 @@ with tab_leg:
             "precio_al",
             "ticker_gd",
             "precio_gd",
-            "spread_gd_al",
             "prima_pct"
         ]].copy()
 
-        for col in ["precio_al", "precio_gd", "spread_gd_al", "prima_pct"]:
+        for col in ["precio_al", "precio_gd", "prima_pct"]:
             df_show[col] = pd.to_numeric(df_show[col], errors="coerce")
 
         df_show["precio_al"] = df_show["precio_al"].round(2)
         df_show["precio_gd"] = df_show["precio_gd"].round(2)
-        df_show["spread_gd_al"] = df_show["spread_gd_al"].round(4)
         df_show["prima_pct"] = df_show["prima_pct"].round(2)
 
         df_show = df_show.rename(columns={
@@ -1723,8 +1721,7 @@ with tab_leg:
             "precio_al": "Precio AL",
             "ticker_gd": "Ticker GD",
             "precio_gd": "Precio GD",
-            "spread_gd_al": "Spread (GD/AL)",
-            "prima_pct": "Prima %"
+            "prima_pct": "Spread %"
         })
 
         st.dataframe(

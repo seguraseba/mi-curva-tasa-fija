@@ -968,10 +968,11 @@ if "bonos_spread" not in st.session_state:
     st.session_state["bonos_spread"] = pd.DataFrame(columns=[
         "ticker",
         "legislacion",
-        "tipo_bono",
         "par",
+        "tipo_precio",
         "comentario"
     ])
+
 
 # =========================
 # PESTAÑAS
@@ -1349,9 +1350,11 @@ with tab_spreads:
                 options=["Ley local", "Ley NY", "Otra"]
             )
 
-            tipo_bono = st.selectbox(
-                "Tipo de bono",
-                options=["Soberano", "Provincial", "Corporativo", "Letra", "Otro"]
+            tipo_precio = st.selectbox(
+                "Campo de precio a usar",
+                options=["c", "px_bid", "px_ask"],
+                index=0,
+                help="c = último precio, px_bid = bid, px_ask = ask"
             )
 
             par = st.text_input(
@@ -1403,8 +1406,8 @@ with tab_spreads:
             st.session_state["bonos_spread"] = pd.DataFrame(columns=[
                 "ticker",
                 "legislacion",
-                "tipo_bono",
                 "par",
+                "tipo_precio",
                 "comentario"
             ])
             st.success("Se limpió la lista de bonos.")

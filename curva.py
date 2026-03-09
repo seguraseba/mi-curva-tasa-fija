@@ -1765,6 +1765,9 @@ with tab_leg:
 # =========================
 # TAB 5: CORPORATIVOS
 # =========================
+# =========================
+# TAB 5: CORPORATIVOS
+# =========================
 with tab_corpos:
     st.subheader("Bonos corporativos en dólares")
 
@@ -1773,13 +1776,64 @@ with tab_corpos:
     else:
         df_corpos_show = corpos_df.copy()
 
-        # opcional: renombrar algunas columnas si querés que se vean más limpias
-        df_corpos_show = df_corpos_show.rename(columns={
-            "Precio Dirty (MEP)": "Dirty (MEP)",
-            "Precio Clean (MEP)": "Clean (MEP)",
-            "TIR Efectiva": "TIR Efectiva",
-            "YTW (TNA)": "YTW (TNA)"
-        })
+        # Limpiar nombres de columnas por si vienen con espacios
+        df_corpos_show.columns = [str(c).strip() for c in df_corpos_show.columns]
+
+        # -------------------------
+        # FILTROS
+        # -------------------------
+        col_f1, col_f2 = st.columns(2)
+
+        # Detectar nombres de columnas esperados
+        col_moneda = None
+        col_ley = None
+
+        for c in df_corpos_show.columns:
+            c_norm = str(c).strip().lower()
+            if c_norm in ["moneda pago", "moneda", "currency"]:
+                col_moneda = c
+            if c_norm in ["ley", "law"]:
+                col_ley = c
+
+        with col_f1:
+            if col_moneda is not None:
+                monedas = sorted(
+                    [x for x in df_corpos_show[col_moneda].dropna().astype(str).str.strip().unique() if x != ""]
+                )
+                opciones_moneda = ["Todas"] + monedas
+                moneda_sel = st.selectbox("Filtrar por moneda", opciones_moneda, index=0)
+            else:
+                moneda_sel = "Todas"
+                st.caption("No se encontró columna de moneda.")
+
+        with col_f2:
+            if col_ley is not None:
+                leyes = sorted(
+                    [x for x in df_corpos_show[col_ley].dropna().astype(str).str.strip().unique() if x != ""]
+                )
+                opciones_ley = ["Todas"] + leyes
+                ley_sel = st.selectbox("Filtrar por ley", opciones_ley, index=0)
+            else:
+                ley_sel = "Todas"
+                st.caption("No se encontró columna de ley.")
+
+        # -------------------------
+        # APLICAR FILTROS
+        # -------------------------
+        if col_moneda is not None and moneda_sel != "Todas":
+            df_corpos_show = df_corpos_show[
+                df_corpos_show[col_moneda].astype(str).str.strip() == moneda_sel
+            ]
+
+        if col_ley is not None and ley_sel != "Todas":
+            df_corpos_show = df_corpos_show[
+                df_corpos_show[col_ley].astype(str).str.strip() == ley_sel
+            ]
+
+        # -------------------------
+        # TABLA
+        # -------------------------
+        st.markdown(f"### Resultados: {len(df_corpos_show)} bono(s)")
 
         st.dataframe(
             df_corpos_show,
@@ -1787,6 +1841,7 @@ with tab_corpos:
             hide_index=True,
             height=min(900, 40 + 35 * len(df_corpos_show))
         )
+
 
 #py -m streamlit run curva.py
 #cd "C:\Users\ssegura\OneDrive - BALANZ\Escritorio\curvas"

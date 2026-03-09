@@ -961,12 +961,22 @@ def _simular_carry_trade(
     out = pd.DataFrame(rows)
     return out, tc_breakeven
 
+# =========================
+# SESSION STATE - BONOS SPREAD
+# =========================
+if "bonos_spread" not in st.session_state:
+    st.session_state["bonos_spread"] = pd.DataFrame(columns=[
+        "ticker",
+        "legislacion",
+        "tipo_bono",
+        "par",
+        "comentario"
+    ])
 
 # =========================
 # PESTAÑAS
 # =========================
-tab_curvas, tab_carry = st.tabs(["Curvas", "Carry Trade"])
-
+tab_curvas, tab_carry, tab_spreads = st.tabs(["Curvas", "Carry Trade", "Bonos / Spreads"])
 
 # =========================
 # TAB 1: CURVAS (TU APP ACTUAL)
@@ -1180,7 +1190,7 @@ else:
             ))
 
             fig.update_layout(
-                title="Curva TIR CER (cupón cero)",
+                title="Curva TIR CER",
                 xaxis_title="Días a vencimiento",
                 yaxis_title="TIR CER (%)",
                 hovermode="closest",
@@ -1312,7 +1322,162 @@ with tab_carry:
         )
 
         
+# =========================
+# TAB 3: BONOS / SPREADS
+# =========================
+with tab_spreads:
+    st.subheader("Configuración de bonos para análisis de spreads")
 
+    st.markdown(
+        "En esta pestaña podés armar el universo de bonos que después "
+        "vamos a usar para cruzar con tu Excel histórico y calcular spreads / percentiles."
+    )
+
+    col_form, col_tabla = st.columns([1, 1.4])
+
+    # -------------------------------------------------
+    # FORMULARIO DE ALTA
+    # -------------------------------------------------
+    with col_form:
+        st.markdown("### Agregar bono")
+
+        with st.form("form_agregar_bono", clear_on_submit=True):
+            ticker = st.text_input("Ticker", value="").strip().upper()
+
+            legislacion = st.selectbox(
+                "Legislación",
+                options=["Ley local", "Ley NY", "Otra"]
+            )
+
+            tipo_bono = st.selectbox(
+                "Tipo de bono",
+                options=["Soberano", "Provincial", "Corporativo", "Letra", "Otro"]
+            )
+
+            par = st.text_input(
+                "Par o grupo",
+                value="",
+                help="Ej: GD30-AL30, GD35-AL35, Globales 2030, etc."
+            ).strip().upper()
+
+            comentario = st.text_input(
+                "Comentario",
+                value="",
+                help="Campo opcional"
+            ).strip()
+
+            agregar = st.form_submit_button("Agregar bono")
+
+            if agregar:
+                if not ticker:
+                    st.warning("Ingresá un ticker antes de agregar.")
+                else:
+                    df_actual = st.session_state["bonos_spread"].copy()
+
+                    nuevo = pd.DataFrame([{
+                        "ticker": ticker,
+                        "legislacion": legislacion,
+                        "tipo_bono": tipo_bono,
+                        "par": par,
+                        "comentario": comentario
+                    }])
+
+                    # evitar duplicados exactos por ticker
+                    if not df_actual.empty:
+                        ya_existe = df_actual["ticker"].astype(str).str.upper().eq(ticker).any()
+                    else:
+                        ya_existe = False
+
+                    if ya_existe:
+                        st.warning(f"El ticker {ticker} ya fue cargado.")
+                    else:
+                        st.session_state["bonos_spread"] = pd.concat(
+                            [df_actual, nuevo],
+                            ignore_index=True
+                        )
+                        st.success(f"{ticker} agregado correctamente.")
+
+        st.markdown("### Acciones")
+
+        if st.button("Limpiar toda la lista"):
+            st.session_state["bonos_spread"] = pd.DataFrame(columns=[
+                "ticker",
+                "legislacion",
+                "tipo_bono",
+                "par",
+                "comentario"
+            ])
+            st.success("Se limpió la lista de bonos.")
+
+        df_export = st.session_state["bonos_spread"].copy()
+        if not df_export.empty:
+            csv_data = df_export.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="Descargar lista en CSV",
+                data=csv_data,
+                file_name="bonos_spreads_config.csv",
+                mime="text/csv"
+            )
+
+    # -------------------------------------------------
+    # TABLA DE BONOS CARGADOS
+    # -------------------------------------------------
+    with col_tabla:
+        st.markdown("### Bonos cargados")
+
+        df_bonos_spread = st.session_state["bonos_spread"].copy()
+
+        if df_bonos_spread.empty:
+            st.info("Todavía no cargaste bonos.")
+        else:
+            df_bonos_spread.index = range(1, len(df_bonos_spread) + 1)
+            st.dataframe(df_bonos_spread, use_container_width=True, height=min(600, 40 + 35 * len(df_bonos_spread)))
+
+            st.markdown("### Eliminar bono cargado")
+
+            opciones_delete = [
+                f"{row.ticker} | {row.legislacion} | {row.par}"
+                for _, row in df_bonos_spread.reset_index(drop=True).iterrows()
+            ]
+
+            seleccion = st.selectbox(
+                "Seleccioná una fila para eliminar",
+                options=opciones_delete
+            )
+
+            if st.button("Eliminar seleccionado"):
+                idx = opciones_delete.index(seleccion)
+                df_tmp = st.session_state["bonos_spread"].copy().reset_index(drop=True)
+                eliminado = df_tmp.loc[idx, "ticker"]
+                df_tmp = df_tmp.drop(index=idx).reset_index(drop=True)
+                st.session_state["bonos_spread"] = df_tmp
+                st.success(f"Se eliminó {eliminado}.")
+                st.rerun()
+
+    # -------------------------------------------------
+    # RESUMEN
+    # -------------------------------------------------
+    st.markdown("### Resumen")
+
+    df_resumen = st.session_state["bonos_spread"].copy()
+
+    if not df_resumen.empty:
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric("Cantidad de bonos", len(df_resumen))
+        c2.metric("Ley local", int((df_resumen["legislacion"] == "Ley local").sum()))
+        c3.metric("Ley NY", int((df_resumen["legislacion"] == "Ley NY").sum()))
+
+        if df_resumen["par"].astype(str).str.strip().ne("").any():
+            resumen_par = (
+                df_resumen[df_resumen["par"].astype(str).str.strip() != ""]
+                .groupby("par", as_index=False)
+                .size()
+                .rename(columns={"size": "cantidad"})
+                .sort_values("cantidad", ascending=False)
+            )
+            st.markdown("### Agrupación por par")
+            st.dataframe(resumen_par, use_container_width=True, hide_index=True)
 
 #py -m streamlit run curva.py
 #cd "C:\Users\ssegura\OneDrive - BALANZ\Escritorio\curvas"

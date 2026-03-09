@@ -806,6 +806,69 @@ def tir_real_cer(precio: float, factor_cer: float, dias: int, base_dias=365):
     tir = (vf / precio) ** (base_dias / dias) - 1
     return tir * 100
 
+def precios_vivos_bonos_config(df_config: pd.DataFrame) -> pd.DataFrame:
+    """
+    Toma la configuración cargada en st.session_state['bonos_spread']
+    y la cruza con la API de bonos en vivo.
+    """
+
+    if df_config is None or df_config.empty:
+        return pd.DataFrame()
+
+    # API bonos en vivo
+    datos_bonos = _fetch_json(URL_BONOS)
+    df_api = pd.DataFrame(datos_bonos)
+
+    if df_api.empty:
+        return pd.DataFrame()
+
+    # Normalizar ticker
+    df_api["ticker"] = df_api["symbol"].astype(str).str.strip().str.upper()
+
+    # Campos que nos interesa conservar desde la API
+    cols_api = [
+        "ticker", "symbol", "c", "v", "q_bid", "px_bid",
+        "px_ask", "q_ask", "q_op", "pct_change"
+    ]
+    cols_api = [c for c in cols_api if c in df_api.columns]
+    df_api = df_api[cols_api].copy()
+
+    # Normalizar config
+    df_cfg = df_config.copy()
+    df_cfg["ticker"] = df_cfg["ticker"].astype(str).str.strip().str.upper()
+
+    # Merge
+    df_merge = df_cfg.merge(df_api, on="ticker", how="left")
+
+    # Precio seleccionado según tipo_precio
+    def _precio_seleccionado(row):
+        campo = str(row.get("tipo_precio", "")).strip()
+        if campo in ["c", "px_bid", "px_ask"]:
+            return row.get(campo)
+        return row.get("c")
+
+    df_merge["precio_seleccionado"] = df_merge.apply(_precio_seleccionado, axis=1)
+
+    # Orden sugerido
+    cols_finales = [
+        "ticker",
+        "legislacion",
+        "par",
+        "tipo_precio",
+        "precio_seleccionado",
+        "c",
+        "px_bid",
+        "px_ask",
+        "pct_change",
+        "v",
+        "q_bid",
+        "q_ask",
+        "q_op",
+        "comentario"
+    ]
+    cols_finales = [c for c in cols_finales if c in df_merge.columns]
+
+    return df_merge[cols_finales].copy()
 
 # =========================
 # MAIN APP (CON PESTAÑAS)
@@ -1481,6 +1544,50 @@ with tab_spreads:
             )
             st.markdown("### Agrupación por par")
             st.dataframe(resumen_par, use_container_width=True, hide_index=True)
+
+    # -------------------------------------------------
+    # PRECIOS EN VIVO
+    # -------------------------------------------------
+    st.markdown("### Precios en vivo")
+
+    df_live = precios_vivos_bonos_config(st.session_state["bonos_spread"])
+
+    if df_live.empty:
+        st.info("No hay bonos cargados para consultar precios en vivo.")
+    else:
+        df_live_show = df_live.copy()
+
+        # Redondeos
+        for col in ["precio_seleccionado", "c", "px_bid", "px_ask", "pct_change"]:
+            if col in df_live_show.columns:
+                df_live_show[col] = pd.to_numeric(df_live_show[col], errors="coerce").round(4)
+
+        for col in ["v", "q_bid", "q_ask", "q_op"]:
+            if col in df_live_show.columns:
+                df_live_show[col] = pd.to_numeric(df_live_show[col], errors="coerce")
+
+        df_live_show = df_live_show.rename(columns={
+            "ticker": "Ticker",
+            "legislacion": "Legislación",
+            "par": "Par",
+            "tipo_precio": "Campo precio",
+            "precio_seleccionado": "Precio usado",
+            "c": "Último",
+            "px_bid": "Bid",
+            "px_ask": "Ask",
+            "pct_change": "% Var",
+            "v": "Volumen",
+            "q_bid": "Cant bid",
+            "q_ask": "Cant ask",
+            "q_op": "Operaciones",
+            "comentario": "Comentario"
+        })
+
+        st.dataframe(
+            df_live_show,
+            use_container_width=True,
+            height=min(700, 40 + 35 * len(df_live_show))
+        )
 
 #py -m streamlit run curva.py
 #cd "C:\Users\ssegura\OneDrive - BALANZ\Escritorio\curvas"

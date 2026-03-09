@@ -227,6 +227,17 @@ def vencimiento_desde_symbol(symbol: str, base_decade: int = 2020) -> date:
 URL_BONOS  = "https://data912.com/live/arg_bonds"
 URL_LETRAS = "https://data912.com/live/arg_notes"
 
+# =========================
+# PARES LEGISLACIÓN
+# =========================
+PARES_LEGISLACION = [
+    {"par": "AL29 / GD29", "ticker_al": "AL29D", "ticker_gd": "GD29D"},
+    {"par": "AL30 / GD30", "ticker_al": "AL30D", "ticker_gd": "GD30D"},
+    {"par": "AL35 / GD35", "ticker_al": "AL35D", "ticker_gd": "GD35D"},
+    {"par": "AE38 / GD38", "ticker_al": "AE38D", "ticker_gd": "GD38D"},
+    {"par": "AL41 / GD41", "ticker_al": "AL41D", "ticker_gd": "GD41D"},
+]
+
 LETRAS_TARGET = [
     "S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S29Y6", "S31L6", "S31G6", "S30O6", "X29Y6", "X30N6", "X31L6"
 ]
@@ -870,6 +881,80 @@ def precios_vivos_bonos_config(df_config: pd.DataFrame) -> pd.DataFrame:
 
     return df_merge[cols_finales].copy()
 
+def tabla_spread_legislacion(precio_col="c") -> pd.DataFrame:
+    """
+    Arma una tabla de spreads AL/GD usando precios en vivo desde URL_BONOS.
+
+    precio_col puede ser:
+    - 'c'
+    - 'px_bid'
+    - 'px_ask'
+    """
+    datos = _fetch_json(URL_BONOS)
+    df_api = pd.DataFrame(datos)
+
+    if df_api.empty:
+        return pd.DataFrame()
+
+    df_api["symbol"] = df_api["symbol"].astype(str).str.strip().str.upper()
+
+    cols_needed = ["symbol", "c", "px_bid", "px_ask", "pct_change", "v"]
+    cols_needed = [c for c in cols_needed if c in df_api.columns]
+    df_api = df_api[cols_needed].copy()
+
+    df_pairs = pd.DataFrame(PARES_LEGISLACION)
+
+    # merge AL
+    df_out = df_pairs.merge(
+        df_api,
+        left_on="ticker_al",
+        right_on="symbol",
+        how="left"
+    ).rename(columns={
+        "c": "c_al",
+        "px_bid": "px_bid_al",
+        "px_ask": "px_ask_al",
+        "pct_change": "pct_change_al",
+        "v": "v_al"
+    }).drop(columns=["symbol"], errors="ignore")
+
+    # merge GD
+    df_out = df_out.merge(
+        df_api,
+        left_on="ticker_gd",
+        right_on="symbol",
+        how="left"
+    ).rename(columns={
+        "c": "c_gd",
+        "px_bid": "px_bid_gd",
+        "px_ask": "px_ask_gd",
+        "pct_change": "pct_change_gd",
+        "v": "v_gd"
+    }).drop(columns=["symbol"], errors="ignore")
+
+    # elegir columna de precio
+    mapa_al = {
+        "c": "c_al",
+        "px_bid": "px_bid_al",
+        "px_ask": "px_ask_al",
+    }
+    mapa_gd = {
+        "c": "c_gd",
+        "px_bid": "px_bid_gd",
+        "px_ask": "px_ask_gd",
+    }
+
+    col_al = mapa_al.get(precio_col, "c_al")
+    col_gd = mapa_gd.get(precio_col, "c_gd")
+
+    df_out["precio_al"] = pd.to_numeric(df_out[col_al], errors="coerce")
+    df_out["precio_gd"] = pd.to_numeric(df_out[col_gd], errors="coerce")
+
+    df_out["spread_gd_al"] = df_out["precio_gd"] / df_out["precio_al"]
+    df_out["prima_pct"] = (df_out["spread_gd_al"] - 1) * 100
+
+    return df_out
+
 # =========================
 # MAIN APP (CON PESTAÑAS)
 # =========================
@@ -1040,7 +1125,10 @@ if "bonos_spread" not in st.session_state:
 # =========================
 # PESTAÑAS
 # =========================
-tab_curvas, tab_carry, tab_spreads = st.tabs(["Curvas", "Carry Trade", "Bonos / Spreads"])
+
+tab_curvas, tab_carry, tab_spreads, tab_leg = st.tabs(
+    ["Curvas", "Carry Trade", "Bonos / Spreads", "Spread Legislación"]
+)
 
 # =========================
 # TAB 1: CURVAS (TU APP ACTUAL)
@@ -1587,6 +1675,63 @@ with tab_spreads:
             df_live_show,
             use_container_width=True,
             height=min(700, 40 + 35 * len(df_live_show))
+        )
+
+# =========================
+# TAB 4: SPREAD LEGISLACIÓN
+# =========================
+with tab_leg:
+    st.subheader("Spread legislación en vivo")
+
+    precio_base = st.selectbox(
+        "Campo de precio",
+        options=["c", "px_bid", "px_ask"],
+        index=0,
+        help="c = último precio, px_bid = bid, px_ask = ask"
+    )
+
+    try:
+        df_leg = tabla_spread_legislacion(precio_col=precio_base)
+    except Exception as e:
+        st.error(f"Error al cargar spread de legislación: {e}")
+        df_leg = pd.DataFrame()
+
+    if df_leg.empty:
+        st.info("No se pudieron cargar datos para los pares de legislación.")
+    else:
+        df_show = df_leg[[
+            "par",
+            "ticker_al",
+            "precio_al",
+            "ticker_gd",
+            "precio_gd",
+            "spread_gd_al",
+            "prima_pct"
+        ]].copy()
+
+        for col in ["precio_al", "precio_gd", "spread_gd_al", "prima_pct"]:
+            df_show[col] = pd.to_numeric(df_show[col], errors="coerce")
+
+        df_show["precio_al"] = df_show["precio_al"].round(2)
+        df_show["precio_gd"] = df_show["precio_gd"].round(2)
+        df_show["spread_gd_al"] = df_show["spread_gd_al"].round(4)
+        df_show["prima_pct"] = df_show["prima_pct"].round(2)
+
+        df_show = df_show.rename(columns={
+            "par": "Par",
+            "ticker_al": "Ticker AL",
+            "precio_al": "Precio AL",
+            "ticker_gd": "Ticker GD",
+            "precio_gd": "Precio GD",
+            "spread_gd_al": "Spread (GD/AL)",
+            "prima_pct": "Prima %"
+        })
+
+        st.dataframe(
+            df_show,
+            use_container_width=True,
+            hide_index=True,
+            height=min(500, 40 + 35 * len(df_show))
         )
 
 #py -m streamlit run curva.py

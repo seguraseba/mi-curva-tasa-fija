@@ -994,6 +994,91 @@ def tabla_spread_legislacion(precio_col="c") -> pd.DataFrame:
 
     return df_out
 
+
+def ticker_mep_desde_excel(symbol: str) -> str:
+    """
+    Convierte el ticker del Excel al ticker MEP para buscar en la API.
+    Regla:
+    - si termina en O -> reemplaza por D
+    - si ya termina en D -> lo deja igual
+    - en otros casos, devuelve el mismo ticker
+    """
+    if symbol is None:
+        return ""
+
+    s = str(symbol).strip().upper()
+
+    if not s:
+        return ""
+
+    if s.endswith("O"):
+        return s[:-1] + "D"
+
+    return s
+
+def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
+    """
+    Toma la tabla de corporativos del Excel y completa/actualiza
+    'Precio Dirty (MEP)' usando el precio 'c' de la API de bonos,
+    buscando el ticker MEP (terminación D).
+    """
+    if df_corpos is None or df_corpos.empty:
+        return df_corpos
+
+    df = df_corpos.copy()
+    df.columns = [str(c).strip() for c in df.columns]
+
+    # detectar columna ticker
+    col_ticker = None
+    for c in df.columns:
+        if str(c).strip().lower() in ["ticker", "symbol", "especie"]:
+            col_ticker = c
+            break
+
+    if col_ticker is None:
+        return df
+
+    # traer API
+    datos_api = _fetch_json(URL_BONOS)
+    df_api = pd.DataFrame(datos_api)
+
+    if df_api.empty or "symbol" not in df_api.columns:
+        return df
+
+    df_api["symbol"] = df_api["symbol"].astype(str).str.strip().str.upper()
+    if "c" in df_api.columns:
+        df_api["c"] = pd.to_numeric(df_api["c"], errors="coerce")
+
+    # quedarnos solo con symbol y c
+    cols_api = [c for c in ["symbol", "c"] if c in df_api.columns]
+    df_api = df_api[cols_api].copy()
+
+    # ticker de búsqueda MEP
+    df["ticker_api_mep"] = df[col_ticker].astype(str).str.strip().str.upper().apply(ticker_mep_desde_excel)
+
+    # merge contra API
+    df = df.merge(
+        df_api,
+        left_on="ticker_api_mep",
+        right_on="symbol",
+        how="left"
+    )
+
+    # si existe la columna Precio Dirty (MEP), la actualizamos con la API
+    col_dirty = None
+    for c in df.columns:
+        if str(c).strip().lower() == "precio dirty (mep)":
+            col_dirty = c
+            break
+
+    if col_dirty is not None and "c" in df.columns:
+        df[col_dirty] = df["c"]
+
+    # limpiar auxiliares
+    df = df.drop(columns=[c for c in ["ticker_api_mep", "symbol", "c"] if c in df.columns], errors="ignore")
+
+    return df
+
 # =========================
 # MAIN APP (CON PESTAÑAS)
 # =========================
@@ -1782,7 +1867,7 @@ with tab_corpos:
     if corpos_df is None or corpos_df.empty:
         st.info("No se pudo cargar la tabla de corporativos.")
     else:
-        df_corpos_show = corpos_df.copy()
+        df_corpos_show = completar_precio_dirty_desde_api(corpos_df)
 
         # eliminar columnas que no queremos mostrar
         cols_eliminar = [

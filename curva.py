@@ -1776,9 +1776,9 @@ with tab_corpos:
 
         with c3:
             if vn_a_cobrar is not None:
-                st.metric("VN a cobrar", f"{vn_a_cobrar:,.4f}")
+                st.metric("VN a comprar", f"{vn_a_cobrar:,.4f}")
             else:
-                st.metric("VN a cobrar", "-")
+                st.metric("VN a comprar", "-")
 
         with c4:
             if fx_implicito is not None:

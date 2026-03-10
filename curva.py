@@ -1764,9 +1764,14 @@ with tab_corpos:
             if usd_a_cobrar > 0:
                 fx_implicito = pesos_disponibles / usd_a_cobrar
 
+        prima_fx = None
+
+        if fx_implicito is not None and fx_offer > 0:
+            prima_fx = (fx_implicito / fx_offer - 1) * 100
+
         st.markdown("### Resultado calculadora")
-        c1, c2 = st.columns(2)
-        c3, c4 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
+        c4, c5 = st.columns(2)
 
         with c1:
             st.metric("Px USD cliente", f"{px_usd_cliente:,.4f}")
@@ -1785,6 +1790,12 @@ with tab_corpos:
                 st.metric("FX implícito", f"{fx_implicito:,.4f}")
             else:
                 st.metric("FX implícito", "-")
+
+        with c5:
+            if prima_fx is not None:
+                st.metric("Prima sobre FX (%)", f"{prima_fx:,.2f}%")
+            else:
+                st.metric("Prima sobre FX (%)", "-")       
 
     if corpos_df is None or corpos_df.empty:
         st.info("No se pudo cargar la tabla de corporativos.")

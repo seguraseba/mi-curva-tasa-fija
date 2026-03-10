@@ -1701,6 +1701,91 @@ with tab_leg:
 with tab_corpos:
     st.subheader("Bonos corporativos en dólares")
 
+        # =========================
+    # CALCULADORA RÁPIDA CORPORATIVOS
+    # =========================
+    with st.expander("Calculadora rápida", expanded=True):
+        col_calc_1, col_calc_2 = st.columns(2)
+
+        with col_calc_1:
+            pesos_disponibles = st.number_input(
+                "Pesos disponibles",
+                min_value=0.0,
+                value=51000000.0,
+                step=100000.0,
+                format="%.4f"
+            )
+
+            px_usd_mesa = st.number_input(
+                "Px USD mesa",
+                min_value=0.0,
+                value=1.06,
+                step=0.0001,
+                format="%.4f"
+            )
+
+            arancel_pct = st.number_input(
+                "Arancel (%)",
+                min_value=0.0,
+                value=1.0,
+                step=0.01,
+                format="%.4f"
+            )
+
+        with col_calc_2:
+            fx_offer = st.number_input(
+                "Offer FX (ver MEP o CCL)",
+                min_value=0.0,
+                value=1430.0,
+                step=1.0,
+                format="%.4f"
+            )
+
+            monto_por_vn = st.number_input(
+                "Monto a cobrar por VN",
+                min_value=0.0,
+                value=1.04,
+                step=0.0001,
+                format="%.4f"
+            )
+
+        # Cálculos
+        px_usd_cliente = px_usd_mesa * (1 + arancel_pct / 100.0)
+        px_ars_cliente = px_usd_cliente * fx_offer
+
+        vn_a_cobrar = None
+        fx_implicito = None
+
+        if px_ars_cliente > 0:
+            vn_a_cobrar = pesos_disponibles / px_ars_cliente
+
+        if monto_por_vn > 0 and vn_a_cobrar is not None and vn_a_cobrar > 0:
+            usd_a_cobrar = vn_a_cobrar * monto_por_vn
+            if usd_a_cobrar > 0:
+                fx_implicito = pesos_disponibles / usd_a_cobrar
+
+        st.markdown("### Resultado calculadora")
+        c1, c2 = st.columns(2)
+        c3, c4 = st.columns(2)
+
+        with c1:
+            st.metric("Px USD cliente", f"{px_usd_cliente:,.4f}")
+
+        with c2:
+            st.metric("Px ARS cliente", f"{px_ars_cliente:,.4f}")
+
+        with c3:
+            if vn_a_cobrar is not None:
+                st.metric("VN a cobrar", f"{vn_a_cobrar:,.4f}")
+            else:
+                st.metric("VN a cobrar", "-")
+
+        with c4:
+            if fx_implicito is not None:
+                st.metric("FX implícito", f"{fx_implicito:,.4f}")
+            else:
+                st.metric("FX implícito", "-")
+
     if corpos_df is None or corpos_df.empty:
         st.info("No se pudo cargar la tabla de corporativos.")
     else:

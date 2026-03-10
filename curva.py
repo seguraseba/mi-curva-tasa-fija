@@ -265,6 +265,8 @@ def vencimiento_desde_symbol(symbol: str, base_decade: int = 2020) -> date:
 
 URL_BONOS  = "https://data912.com/live/arg_bonds"
 URL_LETRAS = "https://data912.com/live/arg_notes"
+URL_BONOS  = "https://data912.com/live/arg_bonds"
+
 
 # =========================
 # PARES LEGISLACIÓN
@@ -1018,10 +1020,12 @@ def ticker_mep_desde_excel(symbol: str) -> str:
 
 def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
     """
-    Toma la tabla de corporativos del Excel y completa/actualiza
-    'Precio Dirty (MEP)' usando el precio 'c' de la API de bonos,
-    buscando el ticker MEP (terminación D).
+    Completa/actualiza 'Precio Dirty (MEP)' usando el precio 'c'
+    de la API de obligaciones negociables.
+    Regla MEP:
+    - si el ticker termina en O, busca el mismo ticker terminado en D
     """
+
     if df_corpos is None or df_corpos.empty:
         return df_corpos
 
@@ -1038,27 +1042,34 @@ def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
     if col_ticker is None:
         return df
 
-    # traer API
-    datos_api = _fetch_json(URL_BONOS)
+    # traer API de ONs
+    datos_api = _fetch_json(URL_ONS)
     df_api = pd.DataFrame(datos_api)
 
     if df_api.empty or "symbol" not in df_api.columns:
         return df
 
     df_api["symbol"] = df_api["symbol"].astype(str).str.strip().str.upper()
+
     if "c" in df_api.columns:
         df_api["c"] = pd.to_numeric(df_api["c"], errors="coerce")
 
-    # quedarnos solo con symbol y c
-    cols_api = [c for c in ["symbol", "c"] if c in df_api.columns]
+    cols_api = [c for c in ["symbol", "c", "pct_change", "v"] if c in df_api.columns]
     df_api = df_api[cols_api].copy()
 
-    # ticker de búsqueda MEP
-    df["ticker_api_mep"] = df[col_ticker].astype(str).str.strip().str.upper().apply(ticker_mep_desde_excel)
+    # ticker que se va a buscar en la API
+    df["ticker_api_mep"] = (
+        df[col_ticker]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .apply(ticker_mep_desde_excel)
+    )
+
+    # debug visual
     df["Ticker API MEP"] = df["ticker_api_mep"]
 
-
-    # merge contra API
+    # merge contra ONs
     df = df.merge(
         df_api,
         left_on="ticker_api_mep",
@@ -1066,7 +1077,7 @@ def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
         how="left"
     )
 
-    # si existe la columna Precio Dirty (MEP), la actualizamos con la API
+    # actualizar Precio Dirty (MEP) con c
     col_dirty = None
     for c in df.columns:
         if str(c).strip().lower() == "precio dirty (mep)":
@@ -1076,8 +1087,18 @@ def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
     if col_dirty is not None and "c" in df.columns:
         df[col_dirty] = df["c"]
 
-    # limpiar auxiliares
-    df = df.drop(columns=[c for c in ["ticker_api_mep", "symbol", "c"] if c in df.columns], errors="ignore")
+    # opcional: guardar también variación/volumen si después los querés mostrar
+    if "pct_change" in df.columns and "% Var API" not in df.columns:
+        df["% Var API"] = df["pct_change"]
+
+    if "v" in df.columns and "Vol API" not in df.columns:
+        df["Vol API"] = df["v"]
+
+    # limpiar auxiliares técnicas, pero dejamos Ticker API MEP para validar
+    df = df.drop(
+        columns=[c for c in ["ticker_api_mep", "symbol", "c", "pct_change", "v"] if c in df.columns],
+        errors="ignore"
+    )
 
     return df
 

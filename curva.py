@@ -1848,7 +1848,11 @@ with tab_corpos:
         for col in ["Vencimiento", "Próx. Cupón", "Prox. Cupón", "Próximo Cupón", "Fecha"]:
             if col in df_corpos_show.columns:
                 try:
-                    df_corpos_show[col] = pd.to_datetime(df_corpos_show[col], errors="coerce", dayfirst=True)
+                    df_corpos_show[col] = pd.to_datetime(
+                        df_corpos_show[col],
+                        errors="coerce",
+                        dayfirst=True
+                    ).dt.date
                 except Exception:
                     pass
 

@@ -41,6 +41,7 @@ def cargar_cer(path: Path, file_version: float) -> pd.DataFrame:
     )
     return df
 
+
 @st.cache_data
 def cargar_corpos(path: Path, file_version: float) -> pd.DataFrame:
     # header=1 porque:
@@ -53,6 +54,13 @@ def cargar_corpos(path: Path, file_version: float) -> pd.DataFrame:
 
     # limpiar nombres de columnas
     df.columns = [str(c).strip() for c in df.columns]
+
+    # convertir columnas de fecha si existen
+    columnas_fecha_posibles = ["Vencimiento", "Próx. Cupón", "Prox. Cupón", "Próximo Cupón", "Fecha"]
+
+    for col in columnas_fecha_posibles:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
 
     return df
 
@@ -1829,11 +1837,20 @@ with tab_corpos:
             df_corpos_show = df_corpos_show[
                 df_corpos_show[col_ley].astype(str).str.strip() == ley_sel
             ]
+            
 
         # -------------------------
         # TABLA
         # -------------------------
         st.markdown(f"### Resultados: {len(df_corpos_show)} bono(s)")
+
+        # asegurar que las columnas de fecha sean datetime
+        for col in ["Vencimiento", "Próx. Cupón", "Prox. Cupón", "Próximo Cupón", "Fecha"]:
+            if col in df_corpos_show.columns:
+                try:
+                    df_corpos_show[col] = pd.to_datetime(df_corpos_show[col], errors="coerce", dayfirst=True)
+                except Exception:
+                    pass
 
         st.dataframe(
             df_corpos_show,

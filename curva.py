@@ -265,7 +265,7 @@ def vencimiento_desde_symbol(symbol: str, base_decade: int = 2020) -> date:
 
 URL_BONOS  = "https://data912.com/live/arg_bonds"
 URL_LETRAS = "https://data912.com/live/arg_notes"
-URL_BONOS  = "https://data912.com/live/arg_bonds"
+URL_BONOS  = "https://data912.com/live/arg_corp"
 
 
 # =========================

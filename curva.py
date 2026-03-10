@@ -1055,6 +1055,8 @@ def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
 
     # ticker de búsqueda MEP
     df["ticker_api_mep"] = df[col_ticker].astype(str).str.strip().str.upper().apply(ticker_mep_desde_excel)
+    df["Ticker API MEP"] = df["ticker_api_mep"]
+
 
     # merge contra API
     df = df.merge(

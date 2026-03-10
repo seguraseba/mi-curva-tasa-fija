@@ -1784,6 +1784,21 @@ with tab_corpos:
     else:
         df_corpos_show = corpos_df.copy()
 
+        # eliminar columnas que no queremos mostrar
+        cols_eliminar = [
+            "Precio Clean (MEP)",
+            "TIR Efectiva",
+            "TNA",
+            "CY",
+            "MD",
+            "YTW (TNA)"
+        ]
+
+        df_corpos_show = df_corpos_show.drop(
+            columns=[c for c in cols_eliminar if c in df_corpos_show.columns],
+            errors="ignore"
+        )
+
         # Limpiar nombres de columnas por si vienen con espacios
         df_corpos_show.columns = [str(c).strip() for c in df_corpos_show.columns]
 

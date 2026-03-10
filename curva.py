@@ -1100,6 +1100,23 @@ def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
         errors="ignore"
     )
 
+    # limpiar columnas auxiliares y debug
+    df = df.drop(
+        columns=[
+            c for c in [
+                "ticker_api_mep",
+                "Ticker API MEP",
+                "% Var API",
+                "Vol API",
+                "symbol",
+                "c",
+                 "pct_change",
+                "v"
+            ] if c in df.columns
+        ],
+        errors="ignore"
+    )
+
     return df
 
 # =========================

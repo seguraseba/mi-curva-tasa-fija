@@ -1123,7 +1123,7 @@ def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
 # MAIN APP (CON PESTAÑAS)
 # =========================
 
-st.title("Curva de instrumentos en pesos")
+st.title("Monitor de Renta Fija")
 
 # --- Cargar universos (una sola vez) ---
 try:
@@ -1290,8 +1290,8 @@ if "bonos_spread" not in st.session_state:
 # PESTAÑAS
 # =========================
 
-tab_curvas, tab_carry, tab_spreads, tab_leg, tab_corpos = st.tabs(
-    ["Curvas", "Carry Trade", "Bonos / Spreads", "Spread Legislación", "Corporativos"]
+tab_curvas, tab_leg, tab_corpos, tab_carry = st.tabs(
+    ["Curvas", "Spread Legislación", "Corporativos", "Carry Trade"]
 )
 
 # =========================
@@ -1637,209 +1637,6 @@ with tab_carry:
             "- La comisión se descuenta solo al inicio (compra).\n"
         )
 
-        
-# =========================
-# TAB 3: BONOS / SPREADS
-# =========================
-with tab_spreads:
-    st.subheader("Configuración de bonos para análisis de spreads")
-
-    st.markdown(
-        "En esta pestaña podés armar el universo de bonos que después "
-        "vamos a usar para cruzar con tu Excel histórico y calcular spreads / percentiles."
-    )
-
-    col_form, col_tabla = st.columns([1, 1.4])
-
-    # -------------------------------------------------
-    # FORMULARIO DE ALTA
-    # -------------------------------------------------
-    with col_form:
-        st.markdown("### Agregar bono")
-
-        with st.form("form_agregar_bono", clear_on_submit=True):
-            ticker = st.text_input("Ticker", value="").strip().upper()
-
-            legislacion = st.selectbox(
-                "Legislación",
-                options=["Ley local", "Ley NY", "Otra"]
-            )
-
-            tipo_precio = st.selectbox(
-                "Campo de precio a usar",
-                options=["c", "px_bid", "px_ask"],
-                index=0,
-                help="c = último precio, px_bid = bid, px_ask = ask"
-            )
-
-            par = st.text_input(
-                "Par o grupo",
-                value="",
-                help="Ej: GD30-AL30, GD35-AL35, Globales 2030, etc."
-            ).strip().upper()
-
-            comentario = st.text_input(
-                "Comentario",
-                value="",
-                help="Campo opcional"
-            ).strip()
-
-            agregar = st.form_submit_button("Agregar bono")
-
-            if agregar:
-                if not ticker:
-                    st.warning("Ingresá un ticker antes de agregar.")
-                else:
-                    df_actual = st.session_state["bonos_spread"].copy()
-
-                    nuevo = pd.DataFrame([{
-                        "ticker": ticker,
-                        "legislacion": legislacion,
-                        "par": par,
-                        "tipo_precio": tipo_precio,
-                        "comentario": comentario
-                    }])
-
-                    # evitar duplicados exactos por ticker
-                    if not df_actual.empty:
-                        ya_existe = df_actual["ticker"].astype(str).str.upper().eq(ticker).any()
-                    else:
-                        ya_existe = False
-
-                    if ya_existe:
-                        st.warning(f"El ticker {ticker} ya fue cargado.")
-                    else:
-                        st.session_state["bonos_spread"] = pd.concat(
-                            [df_actual, nuevo],
-                            ignore_index=True
-                        )
-                        st.success(f"{ticker} agregado correctamente.")
-
-        st.markdown("### Acciones")
-
-        if st.button("Limpiar toda la lista"):
-            st.session_state["bonos_spread"] = pd.DataFrame(columns=[
-                "ticker",
-                "legislacion",
-                "par",
-                "tipo_precio",
-                "comentario"
-            ])
-            st.success("Se limpió la lista de bonos.")
-
-        df_export = st.session_state["bonos_spread"].copy()
-        if not df_export.empty:
-            csv_data = df_export.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="Descargar lista en CSV",
-                data=csv_data,
-                file_name="bonos_spreads_config.csv",
-                mime="text/csv"
-            )
-
-    # -------------------------------------------------
-    # TABLA DE BONOS CARGADOS
-    # -------------------------------------------------
-    with col_tabla:
-        st.markdown("### Bonos cargados")
-
-        df_bonos_spread = st.session_state["bonos_spread"].copy()
-
-        if df_bonos_spread.empty:
-            st.info("Todavía no cargaste bonos.")
-        else:
-            df_bonos_spread.index = range(1, len(df_bonos_spread) + 1)
-            st.dataframe(df_bonos_spread, use_container_width=True, height=min(600, 40 + 35 * len(df_bonos_spread)))
-
-            st.markdown("### Eliminar bono cargado")
-
-            opciones_delete = [
-                f"{row.ticker} | {row.legislacion} | {row.par}"
-                for _, row in df_bonos_spread.reset_index(drop=True).iterrows()
-            ]
-
-            seleccion = st.selectbox(
-                "Seleccioná una fila para eliminar",
-                options=opciones_delete
-            )
-
-            if st.button("Eliminar seleccionado"):
-                idx = opciones_delete.index(seleccion)
-                df_tmp = st.session_state["bonos_spread"].copy().reset_index(drop=True)
-                eliminado = df_tmp.loc[idx, "ticker"]
-                df_tmp = df_tmp.drop(index=idx).reset_index(drop=True)
-                st.session_state["bonos_spread"] = df_tmp
-                st.success(f"Se eliminó {eliminado}.")
-                st.rerun()
-
-    # -------------------------------------------------
-    # RESUMEN
-    # -------------------------------------------------
-    st.markdown("### Resumen")
-
-    df_resumen = st.session_state["bonos_spread"].copy()
-
-    if not df_resumen.empty:
-        c1, c2, c3 = st.columns(3)
-
-        c1.metric("Cantidad de bonos", len(df_resumen))
-        c2.metric("Ley local", int((df_resumen["legislacion"] == "Ley local").sum()))
-        c3.metric("Ley NY", int((df_resumen["legislacion"] == "Ley NY").sum()))
-
-        if df_resumen["par"].astype(str).str.strip().ne("").any():
-            resumen_par = (
-                df_resumen[df_resumen["par"].astype(str).str.strip() != ""]
-                .groupby("par", as_index=False)
-                .size()
-                .rename(columns={"size": "cantidad"})
-                .sort_values("cantidad", ascending=False)
-            )
-            st.markdown("### Agrupación por par")
-            st.dataframe(resumen_par, use_container_width=True, hide_index=True)
-
-    # -------------------------------------------------
-    # PRECIOS EN VIVO
-    # -------------------------------------------------
-    st.markdown("### Precios en vivo")
-
-    df_live = precios_vivos_bonos_config(st.session_state["bonos_spread"])
-
-    if df_live.empty:
-        st.info("No hay bonos cargados para consultar precios en vivo.")
-    else:
-        df_live_show = df_live.copy()
-
-        # Redondeos
-        for col in ["precio_seleccionado", "c", "px_bid", "px_ask", "pct_change"]:
-            if col in df_live_show.columns:
-                df_live_show[col] = pd.to_numeric(df_live_show[col], errors="coerce").round(4)
-
-        for col in ["v", "q_bid", "q_ask", "q_op"]:
-            if col in df_live_show.columns:
-                df_live_show[col] = pd.to_numeric(df_live_show[col], errors="coerce")
-
-        df_live_show = df_live_show.rename(columns={
-            "ticker": "Ticker",
-            "legislacion": "Legislación",
-            "par": "Par",
-            "tipo_precio": "Campo precio",
-            "precio_seleccionado": "Precio usado",
-            "c": "Último",
-            "px_bid": "Bid",
-            "px_ask": "Ask",
-            "pct_change": "% Var",
-            "v": "Volumen",
-            "q_bid": "Cant bid",
-            "q_ask": "Cant ask",
-            "q_op": "Operaciones",
-            "comentario": "Comentario"
-        })
-
-        st.dataframe(
-            df_live_show,
-            use_container_width=True,
-            height=min(700, 40 + 35 * len(df_live_show))
-        )
 
 # =========================
 # TAB 4: SPREAD LEGISLACIÓN

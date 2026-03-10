@@ -1699,7 +1699,7 @@ with tab_leg:
 # TAB 5: CORPORATIVOS
 # =========================
 with tab_corpos:
-    st.subheader("Bonos corporativos en dólares")
+    st.subheader("Bonos corporativos")
 
         # =========================
     # CALCULADORA RÁPIDA CORPORATIVOS

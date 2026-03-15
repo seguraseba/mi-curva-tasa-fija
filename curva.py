@@ -16,12 +16,30 @@ st.set_page_config(
     layout="wide",  # importante para ver tabla y gráfico lado a lado
 )
 
+# =========================
+# BUSQUEDA DE ARCHIVOS (MULTI PC)
+# =========================
 
-CER_LOCAL_PATH = Path(r"C:\Users\ssegura\OneDrive - BALANZ\Escritorio\CER.xlsx")
-CER_REPO_PATH  = Path(__file__).parent / "CER.xlsx"
+CER_PATHS = [
+    Path.home() / "OneDrive - BALANZ" / "Escritorio" / "CER.xlsx",
+    Path(__file__).parent / "CER.xlsx",
+]
 
-CORPOS_LOCAL_PATH = Path(r"C:\Users\ssegura\OneDrive - BALANZ\Escritorio\corpos.xlsx")
-CORPOS_REPO_PATH  = Path(__file__).parent / "corpos.xlsx"
+CORPOS_PATHS = [
+    Path.home() / "OneDrive - BALANZ" / "Escritorio" / "corpos.xlsx",
+    Path(__file__).parent / "corpos.xlsx",
+]
+
+
+def buscar_archivo(paths: list[Path]) -> Path | None:
+    """
+    Busca un archivo en una lista de rutas posibles
+    y devuelve la primera que exista.
+    """
+    for path in paths:
+        if path.exists():
+            return path
+    return None
 
 @st.cache_data
 def cargar_cer(path: Path, file_version: float) -> pd.DataFrame:
@@ -64,31 +82,34 @@ def cargar_corpos(path: Path, file_version: float) -> pd.DataFrame:
 
     return df
 
-# 1) Local: tu PC
-if CER_LOCAL_PATH.exists():
-    cer_df = cargar_cer(CER_LOCAL_PATH, CER_LOCAL_PATH.stat().st_mtime)
-    st.sidebar.success("✅ CER cargado desde tu Escritorio (modo local)")
-# 2) Web / general: archivo en repo
-elif CER_REPO_PATH.exists():
-    cer_df = cargar_cer(CER_REPO_PATH, CER_REPO_PATH.stat().st_mtime)
-    st.sidebar.success("✅ CER cargado desde el repo (modo web)")
-# 3) Si falta todo: cortar con mensaje claro
+# =========================
+# CARGA CER
+# =========================
+
+cer_file = buscar_archivo(CER_PATHS)
+
+if cer_file is not None:
+    cer_df = cargar_cer(cer_file, cer_file.stat().st_mtime)
+    st.sidebar.success(f"✅ CER cargado desde: {cer_file}")
 else:
-    st.sidebar.error("❌ No se encontró CER.xlsx ni en el Escritorio ni en el repo.")
+    st.sidebar.error("❌ No se encontró CER.xlsx en ninguna ruta configurada.")
     st.stop()
 
 # =========================
 # CARGA EXCEL CORPORATIVOS
 # =========================
-if CORPOS_LOCAL_PATH.exists():
-    corpos_df = cargar_corpos(CORPOS_LOCAL_PATH, CORPOS_LOCAL_PATH.stat().st_mtime)
-    st.sidebar.success("✅ Corporativos cargados desde tu Escritorio")
-elif CORPOS_REPO_PATH.exists():
-    corpos_df = cargar_corpos(CORPOS_REPO_PATH, CORPOS_REPO_PATH.stat().st_mtime)
-    st.sidebar.success("✅ Corporativos cargados desde el repo")
+# =========================
+# CARGA CORPORATIVOS
+# =========================
+
+corpos_file = buscar_archivo(CORPOS_PATHS)
+
+if corpos_file is not None:
+    corpos_df = cargar_corpos(corpos_file, corpos_file.stat().st_mtime)
+    st.sidebar.success(f"✅ Corporativos cargados desde: {corpos_file}")
 else:
     corpos_df = pd.DataFrame()
-    st.sidebar.warning("⚠️ No se encontró corpos.xlsx")
+    st.sidebar.warning("⚠️ No se encontró corpos.xlsx en ninguna ruta configurada.")
 
 from pandas.tseries.offsets import BDay
 
@@ -1123,7 +1144,7 @@ def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
 # MAIN APP (CON PESTAÑAS)
 # =========================
 
-st.title("Monitor de Renta Fija")
+st.title("Monitor de Renta Fija ARS USD")
 
 # --- Cargar universos (una sola vez) ---
 try:

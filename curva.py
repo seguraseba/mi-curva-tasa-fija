@@ -305,11 +305,11 @@ LETRAS_TARGET = [
 ]
 
 BONOS_TARGET = [
-    "T30E6",
     "T13F6",
     "T30J6",
     "T15E7",
     "T30A7",
+    "T31Y7",
     "T30J7",
 ]
 

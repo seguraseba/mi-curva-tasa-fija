@@ -1140,6 +1140,27 @@ def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+
+def color_spread(val):
+    """
+    Colorea la columna de spread:
+    - verde si > 0
+    - rojo si < 0
+    - neutro si = 0 o NaN
+    """
+    try:
+        if pd.isna(val):
+            return ""
+        v = float(val)
+        if v > 0:
+            return "color: #00c853; font-weight: 700;"
+        elif v < 0:
+            return "color: #ff5252; font-weight: 700;"
+        else:
+            return "color: #e0e0e0; font-weight: 700;"
+    except Exception:
+        return ""
+
 # =========================
 # MAIN APP (CON PESTAÑAS)
 # =========================
@@ -1706,8 +1727,14 @@ with tab_leg:
             "prima_pct": "Spread %"
         })
 
+        df_show_styled = df_show.style.format({
+            "Precio AL": "{:,.2f}",
+            "Precio GD": "{:,.2f}",
+            "Spread %": "{:,.2f}%"
+        }).map(color_spread, subset=["Spread %"])
+
         st.dataframe(
-            df_show,
+            df_show_styled,
             use_container_width=True,
             hide_index=True,
             height=min(500, 40 + 35 * len(df_show))
@@ -1934,5 +1961,13 @@ git add CER.xlsx
 git commit -m "Update CER file"
 git push
 
+"""
+
+
+#cd "C:\Users\msegu\OneDrive\Desktop\mi-curva-tasa-fija"
+"""
+git add .
+git commit -m "update app corporativos"
+git push
 """
 

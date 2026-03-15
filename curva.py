@@ -1184,6 +1184,28 @@ def color_vencimiento(val):
     except Exception:
         return ""
 
+def color_tir(val):
+    """
+    Resalta TIR en verde.
+    """
+    try:
+        if pd.isna(val):
+            return ""
+        return "color: #00c853; font-weight: 700;"
+    except Exception:
+        return ""
+
+
+def color_precio(val):
+    """
+    Resalta precios en celeste.
+    """
+    try:
+        if pd.isna(val):
+            return ""
+        return "color: #40c4ff; font-weight: 700;"
+    except Exception:
+        return ""
 
 # =========================
 # MAIN APP (CON PESTAÑAS)
@@ -1410,7 +1432,24 @@ else:
         max_height = 650
         height_tf = min(max_height, 40 + len(df_display) * row_height)
 
-        st.dataframe(df_display, use_container_width=True, height=height_tf)
+        styler_tf = df_display.style.format({
+            "Precio": "{:,.2f}",
+            "TNA (%)": "{:,.2f}",
+            "TIR (%)": "{:,.2f}",
+            "TEM (%)": "{:,.2f}"
+        })
+
+        if "Precio" in df_display.columns:
+            styler_tf = styler_tf.map(color_precio, subset=["Precio"])
+
+        if "TIR (%)" in df_display.columns:
+            styler_tf = styler_tf.map(color_tir, subset=["TIR (%)"])
+
+        st.dataframe(
+            styler_tf,
+            use_container_width=True,
+            height=height_tf
+        )
 
     # --- Gráfico TF (derecha) ---
     with col_tf_graf:
@@ -1519,7 +1558,24 @@ else:
         max_height = 650
         height_cer = min(max_height, 40 + len(df_cer_display) * row_height)
 
-        st.dataframe(df_cer_display, use_container_width=True, height=height_cer)
+        styler_cer = df_cer_display.style.format({
+            "Precio": "{:,.2f}",
+            "Volumen": "{:,.0f}",
+            "% Var": "{:,.2f}",
+            "TIR CER (%)": "{:,.2f}"
+        })
+
+        if "Precio" in df_cer_display.columns:
+            styler_cer = styler_cer.map(color_precio, subset=["Precio"])
+
+        if "TIR CER (%)" in df_cer_display.columns:
+            styler_cer = styler_cer.map(color_tir, subset=["TIR CER (%)"])
+
+        st.dataframe(
+            styler_cer,
+            use_container_width=True,
+            height=height_cer
+        )
 
     # --- Gráfico CER (derecha) ---
     with col_cer_graf:

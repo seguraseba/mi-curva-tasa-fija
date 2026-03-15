@@ -1893,6 +1893,29 @@ with tab_corpos:
         df_corpos_show.columns = [str(c).strip() for c in df_corpos_show.columns]
 
         # -------------------------
+        # ORDEN DE COLUMNAS
+        # -------------------------
+        columnas_preferidas = [
+            "Ticker",
+            "Emisor",
+            "Industria",
+            "Ley",
+            "Moneda Pago",
+            "Precio Dirty (MEP)",
+            "Cupón",
+            "Vencimiento",
+            "Próx. Cupón",
+            "Prox. Cupón",
+            "Próximo Cupón",
+            "Calificación Fix",
+        ]
+
+        columnas_existentes_preferidas = [c for c in columnas_preferidas if c in df_corpos_show.columns]
+        columnas_restantes = [c for c in df_corpos_show.columns if c not in columnas_existentes_preferidas]
+
+        df_corpos_show = df_corpos_show[columnas_existentes_preferidas + columnas_restantes]
+
+        # -------------------------
         # FILTROS
         # -------------------------
         col_f1, col_f2 = st.columns(2)

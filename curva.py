@@ -1161,6 +1161,30 @@ def color_spread(val):
     except Exception:
         return ""
 
+def color_precio_dirty(val):
+    """
+    Resalta Precio Dirty (MEP).
+    """
+    try:
+        if pd.isna(val):
+            return ""
+        return "color: #40c4ff; font-weight: 700;"
+    except Exception:
+        return ""
+
+
+def color_vencimiento(val):
+    """
+    Resalta la fecha de vencimiento.
+    """
+    try:
+        if pd.isna(val):
+            return ""
+        return "color: #ffd54f; font-weight: 700;"
+    except Exception:
+        return ""
+
+
 # =========================
 # MAIN APP (CON PESTAÑAS)
 # =========================
@@ -1937,8 +1961,48 @@ with tab_corpos:
                 except Exception:
                     pass
 
+        # -------------------------
+        # FORMATO VISUAL TABLA
+        # -------------------------
+        columnas_formato_2d = [
+            "Precio Dirty (MEP)",
+        ]
+
+        columnas_formato_pct = [
+            "Cupón",
+        ]
+
+        for col in columnas_formato_2d:
+            if col in df_corpos_show.columns:
+                df_corpos_show[col] = pd.to_numeric(df_corpos_show[col], errors="coerce").round(2)
+
+        # Orden opcional por vencimiento
+        if "Vencimiento" in df_corpos_show.columns:
+            try:
+                df_corpos_show = df_corpos_show.sort_values("Vencimiento", ascending=True)
+            except Exception:
+                pass
+
+        # Armar estilos
+        styler_corpos = df_corpos_show.style
+
+        # Formatos numéricos
+        formato_dict = {}
+        if "Precio Dirty (MEP)" in df_corpos_show.columns:
+            formato_dict["Precio Dirty (MEP)"] = "{:,.2f}"
+
+        if formato_dict:
+            styler_corpos = styler_corpos.format(formato_dict)
+
+        # Colores
+        if "Precio Dirty (MEP)" in df_corpos_show.columns:
+            styler_corpos = styler_corpos.map(color_precio_dirty, subset=["Precio Dirty (MEP)"])
+
+        if "Vencimiento" in df_corpos_show.columns:
+            styler_corpos = styler_corpos.map(color_vencimiento, subset=["Vencimiento"])
+
         st.dataframe(
-            df_corpos_show,
+            styler_corpos,
             use_container_width=True,
             hide_index=True,
             height=min(900, 40 + 35 * len(df_corpos_show))
@@ -1969,5 +2033,6 @@ git push
 git add .
 git commit -m "update app corporativos"
 git push
+
 """
 

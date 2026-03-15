@@ -1144,7 +1144,7 @@ def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
 # MAIN APP (CON PESTAÑAS)
 # =========================
 
-st.title("Monitor de Renta Fija ARS USD")
+st.title("Monitor de Renta Fija")
 
 # --- Cargar universos (una sola vez) ---
 try:

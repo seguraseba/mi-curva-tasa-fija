@@ -301,7 +301,7 @@ PARES_LEGISLACION = [
 ]
 
 LETRAS_TARGET = [
-    "S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S29Y6", "S31L6", "S31G6", "S30O6", "X29Y6", "X30N6", "X31L6"
+    "S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S29Y6", "S31L6", "S31G6", "S30O6", "X29Y6","X15Y6", "X30N6", "X31L6"
 ]
 
 BONOS_TARGET = [
@@ -331,6 +331,7 @@ BONOS_CER_TARGET = [
     "TZXA7",
     "TZXY7",
     "X29Y6",
+    "X15Y6",
     "X30N6",
     "X31L6",
 ]
@@ -353,6 +354,7 @@ FECHA_VENCIMIENTO = {
     "PARP":  date(2038, 12, 31),
     "CUAP":  date(2045, 12, 31),
     "X29Y6": date(2026, 5, 29),
+    "X15Y6": date(2026, 5, 29),
     "X30N6": date(2026, 11, 30),
     "X31L6": date(2026, 7, 31),
 }
@@ -460,6 +462,7 @@ FECHA_EMISION = {
     "DICP":  date(2003, 12, 31),
     "PARP":  date(2003, 12, 31),
     "CUAP":  date(2003, 12, 31),
+    "X15Y6": date(2026, 3, 13),
     "X29Y6": date(2025, 11, 28),
     "X30N6": date(2025, 12, 15),
     "X31L6": date(2026, 1, 30),
@@ -2115,3 +2118,8 @@ git push
 
 """
 
+"""
+git pull 
+
+para traer cuando cambio de pc
+"""

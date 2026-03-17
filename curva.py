@@ -1733,24 +1733,26 @@ with tab_cer_proj:
         cer_conocido_default = 1000.0
 
     st.caption(
-        f"Último CER cargado automáticamente desde Excel: {fecha_cer_default.strftime('%d/%m/%Y')} → {cer_conocido_default:,.4f}"
+        "CER tomado automáticamente desde Excel (último dato disponible): "
+        f"{fecha_cer_default.strftime('%d/%m/%Y')} → {cer_conocido_default:,.4f}"
     )
 
     col_in_1, col_in_2 = st.columns(2)
 
     with col_in_1:
-        fecha_cer_conocido = st.date_input(
-            "Fecha CER conocido",
-            value=fecha_cer_default
+        st.metric(
+            "Fecha CER base",
+            fecha_cer_default.strftime("%d/%m/%Y")
         )
 
-        cer_conocido = st.number_input(
-            "CER conocido",
-            min_value=0.0,
-            value=cer_conocido_default,
-            step=0.0001,
-            format="%.4f"
+        st.metric(
+            "CER base",
+            f"{cer_conocido_default:,.4f}"
         )
+
+        # variables internas (sin input del usuario)
+        fecha_cer_conocido = fecha_cer_default
+        cer_conocido = cer_conocido_default
 
     with col_in_2:
         ipc_estimado_pct = st.number_input(

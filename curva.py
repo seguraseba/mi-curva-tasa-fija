@@ -1721,18 +1721,33 @@ with tab_cer_proj:
         "distribuido con capitalización diaria hasta el 15 del mes siguiente."
     )
 
+    # -------------------------
+    # TOMAR ULTIMO CER DESDE EXCEL
+    # -------------------------
+    if cer_df is not None and not cer_df.empty:
+        ultima_fila_cer = cer_df.sort_values("fecha").iloc[-1]
+        fecha_cer_default = pd.to_datetime(ultima_fila_cer["fecha"]).date()
+        cer_conocido_default = float(ultima_fila_cer["cer"])
+    else:
+        fecha_cer_default = date.today()
+        cer_conocido_default = 1000.0
+
+    st.caption(
+        f"Último CER cargado automáticamente desde Excel: {fecha_cer_default.strftime('%d/%m/%Y')} → {cer_conocido_default:,.4f}"
+    )
+
     col_in_1, col_in_2 = st.columns(2)
 
     with col_in_1:
         fecha_cer_conocido = st.date_input(
             "Fecha CER conocido",
-            value=date.today()
+            value=fecha_cer_default
         )
 
         cer_conocido = st.number_input(
             "CER conocido",
             min_value=0.0,
-            value=1000.0,
+            value=cer_conocido_default,
             step=0.0001,
             format="%.4f"
         )

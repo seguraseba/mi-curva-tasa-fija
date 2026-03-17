@@ -1279,6 +1279,71 @@ def proyectar_cer_tramo(
         "error": None,
     }
 
+def rendimiento_esperado_cer_cupon_cero(
+    symbol: str,
+    precio_actual: float,
+    cer_proyectado_final: float,
+    fecha_emision_map: dict,
+    fecha_vencimiento_map: dict,
+    cer_df: pd.DataFrame,
+    base_dias: int = 365,
+) -> dict:
+    """
+    Calcula rendimiento esperado para un bono CER cupón cero,
+    usando un CER final proyectado en vencimiento - 10 hábiles.
+    """
+
+    symbol = str(symbol).strip().upper()
+
+    if symbol not in fecha_emision_map:
+        return {"error": "No hay fecha de emisión cargada."}
+
+    if symbol not in fecha_vencimiento_map:
+        return {"error": "No hay fecha de vencimiento cargada."}
+
+    try:
+        precio_actual = float(precio_actual)
+        cer_proyectado_final = float(cer_proyectado_final)
+    except Exception:
+        return {"error": "Precio actual o CER proyectado inválido."}
+
+    if precio_actual <= 0 or cer_proyectado_final <= 0:
+        return {"error": "Precio actual o CER proyectado no válidos."}
+
+    fecha_emis = pd.Timestamp(fecha_emision_map[symbol]).normalize()
+    fecha_vto = pd.Timestamp(fecha_vencimiento_map[symbol]).normalize()
+
+    f_emis_m10 = fecha_emis - BDay(10)
+    f_vto_m10 = fecha_vto - BDay(10)
+
+    cer_emis = cer_en_o_antes(cer_df, f_emis_m10)
+
+    if cer_emis is None or cer_emis == 0:
+        return {"error": "No se encontró CER en emisión - 10 hábiles."}
+
+    coef_esperado = cer_proyectado_final / cer_emis
+    vf_esperado = 100.0 * coef_esperado
+
+    dias_a_vto = (fecha_vto - pd.Timestamp.today().normalize()).days
+
+    tir_esperada = tir_cer_cupon_cero(precio_actual, vf_esperado, dias_a_vto, base_dias=base_dias)
+    tna_esperada = tna_cer_cupon_cero(precio_actual, vf_esperado, dias_a_vto, base_dias=base_dias)
+
+    return {
+        "symbol": symbol,
+        "fecha_emis_m10": f_emis_m10.date(),
+        "fecha_vto_m10": f_vto_m10.date(),
+        "cer_emis": cer_emis,
+        "cer_final_proyectado": cer_proyectado_final,
+        "coef_esperado": coef_esperado,
+        "vf_esperado": vf_esperado,
+        "dias_a_vto": dias_a_vto,
+        "tir_esperada": tir_esperada,
+        "tna_esperada": tna_esperada,
+        "error": None,
+    }
+
+
 # =========================
 # MAIN APP (CON PESTAÑAS)
 # =========================
@@ -1732,6 +1797,15 @@ with tab_cer_proj:
         fecha_cer_default = date.today()
         cer_conocido_default = 1000.0
 
+    # -------------------------
+    # UNIVERSO CER CUPON CERO PARA CALCULADORA
+    # -------------------------
+    tickers_cer_calc = [
+        s for s in FECHA_VENCIMIENTO.keys()
+        if s in FECHA_EMISION and s not in CER_ESPECIALES_CON_FLUJOS
+    ]
+    tickers_cer_calc = sorted(tickers_cer_calc)
+
     st.caption(
         "CER tomado automáticamente desde Excel (último dato disponible): "
         f"{fecha_cer_default.strftime('%d/%m/%Y')} → {cer_conocido_default:,.4f}"
@@ -1754,12 +1828,19 @@ with tab_cer_proj:
         fecha_cer_conocido = fecha_cer_default
         cer_conocido = cer_conocido_default
 
+
     with col_in_2:
         ipc_estimado_pct = st.number_input(
             "IPC estimado (%)",
             value=3.0,
             step=0.1,
             format="%.4f"
+        )
+
+        ticker_cer = st.selectbox(
+            "Ticker CER",
+            options=tickers_cer_calc,
+            index=0 if tickers_cer_calc else None
         )
 
         fecha_fin_default = fecha_15_mes_siguiente(fecha_cer_conocido)
@@ -1782,7 +1863,6 @@ with tab_cer_proj:
         st.warning(resultado_cer["error"])
     else:
         st.markdown("### Resultados")
-
         k1, k2, k3 = st.columns(3)
         k4, k5 = st.columns(2)
 
@@ -1833,6 +1913,70 @@ with tab_cer_proj:
             use_container_width=True,
             hide_index=True
         )
+
+        # =========================
+        # RENDIMIENTO ESPERADO BONO CER
+        # =========================
+        st.markdown("### Rendimiento esperado del bono CER")
+
+        if ticker_cer and df_cer is not None and not df_cer.empty:
+            row_bono = df_cer[df_cer["symbol"].astype(str).str.upper() == ticker_cer]
+
+            if row_bono.empty:
+                st.warning(f"No se encontró precio actual para {ticker_cer} en el universo CER.")
+            else:
+                precio_actual_bono = pd.to_numeric(row_bono.iloc[0]["c"], errors="coerce")
+
+                fecha_vto = FECHA_VENCIMIENTO.get(ticker_cer)
+                fecha_objetivo_bono = (pd.Timestamp(fecha_vto).normalize() - BDay(10)).date()
+
+                # validar que la fecha objetivo del bono esté dentro del tramo proyectable
+                if fecha_objetivo_bono < resultado_cer["fecha_inicio"] or fecha_objetivo_bono > resultado_cer["fecha_fin"]:
+                    st.warning(
+                        f"Para {ticker_cer}, la fecha objetivo relevante ({fecha_objetivo_bono.strftime('%d/%m/%Y')}) "
+                        f"queda fuera del tramo actualmente proyectable "
+                        f"({resultado_cer['fecha_inicio'].strftime('%d/%m/%Y')} a {resultado_cer['fecha_fin'].strftime('%d/%m/%Y')})."
+                    )
+                else:
+                    resultado_bono = proyectar_cer_tramo(
+                        fecha_cer_conocido=fecha_cer_conocido,
+                        cer_conocido=cer_conocido,
+                        ipc_estimado_pct=ipc_estimado_pct,
+                        fecha_objetivo=fecha_objetivo_bono,
+                    )
+
+                    if resultado_bono.get("error"):
+                        st.warning(resultado_bono["error"])
+                    else:
+                        rendimiento_bono = rendimiento_esperado_cer_cupon_cero(
+                            symbol=ticker_cer,
+                            precio_actual=precio_actual_bono,
+                            cer_proyectado_final=resultado_bono["cer_proyectado_obj"],
+                            fecha_emision_map=FECHA_EMISION,
+                            fecha_vencimiento_map=FECHA_VENCIMIENTO,
+                            cer_df=cer_df,
+                        )
+
+                        if rendimiento_bono.get("error"):
+                            st.warning(rendimiento_bono["error"])
+                        else:
+                            r1, r2, r3 = st.columns(3)
+                            r4, r5 = st.columns(2)
+
+                            r1.metric("Ticker", ticker_cer)
+                            r2.metric("Precio actual", f"{precio_actual_bono:,.2f}")
+                            r3.metric("Fecha vto - 10 hábiles", rendimiento_bono["fecha_vto_m10"].strftime("%d/%m/%Y"))
+                            r4.metric("CER final proyectado", f"{rendimiento_bono['cer_final_proyectado']:,.4f}")
+                            r5.metric("CER emisión - 10", f"{rendimiento_bono['cer_emis']:,.4f}")
+
+                            r6, r7, r8 = st.columns(3)
+                            r6.metric("Coeficiente CER esperado", f"{rendimiento_bono['coef_esperado']:,.6f}")
+                            r7.metric("VF esperado", f"{rendimiento_bono['vf_esperado']:,.4f}")
+                            r8.metric("Días a vencimiento", f"{rendimiento_bono['dias_a_vto']}")
+
+                            r9, r10 = st.columns(2)
+                            r9.metric("TIR esperada (%)", f"{rendimiento_bono['tir_esperada']:,.2f}%" if rendimiento_bono["tir_esperada"] is not None else "-")
+                            r10.metric("TNA esperada (%)", f"{rendimiento_bono['tna_esperada']:,.2f}%" if rendimiento_bono["tna_esperada"] is not None else "-")
 
 # =========================
 # TAB 2: CARRY TRADE

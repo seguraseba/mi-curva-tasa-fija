@@ -2037,13 +2037,18 @@ with tab_cer_proj:
                 fecha_vto = FECHA_VENCIMIENTO.get(ticker_cer)
                 fecha_objetivo_bono = (pd.Timestamp(fecha_vto).normalize() - BDay(10)).date()
 
-                # validar que la fecha objetivo del bono esté dentro del tramo proyectable
-                if fecha_objetivo_bono < resultado_cer["fecha_inicio"] or fecha_objetivo_bono > resultado_cer["fecha_fin"]:
+                # validar que la fecha objetivo del bono esté dentro del horizonte proyectable
+                if (
+                    fecha_objetivo_bono < resultado_cer["fecha_inicio_global"]
+                    or fecha_objetivo_bono > resultado_cer["fecha_max_proyectable"]
+                ):
                     st.warning(
                         f"Para {ticker_cer}, la fecha objetivo relevante ({fecha_objetivo_bono.strftime('%d/%m/%Y')}) "
-                        f"queda fuera del tramo actualmente proyectable "
-                        f"({resultado_cer['fecha_inicio'].strftime('%d/%m/%Y')} a {resultado_cer['fecha_fin'].strftime('%d/%m/%Y')})."
+                        f"queda fuera del horizonte actualmente proyectable "
+                        f"({resultado_cer['fecha_inicio_global'].strftime('%d/%m/%Y')} a "
+                        f"{resultado_cer['fecha_max_proyectable'].strftime('%d/%m/%Y')})."
                     )
+                
                 else:
                     resultado_bono = proyectar_cer_multi_tramos(
                         fecha_cer_conocido=fecha_cer_conocido,

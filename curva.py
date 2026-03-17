@@ -354,7 +354,7 @@ FECHA_VENCIMIENTO = {
     "PARP":  date(2038, 12, 31),
     "CUAP":  date(2045, 12, 31),
     "X29Y6": date(2026, 5, 29),
-    "X15Y6": date(2026, 5, 29),
+    "X15Y6": date(2026, 5, 15),
     "X30N6": date(2026, 11, 30),
     "X31L6": date(2026, 7, 31),
 }
@@ -2120,6 +2120,4 @@ git push
 
 """
 git pull 
-
-para traer cuando cambio de pc
 """

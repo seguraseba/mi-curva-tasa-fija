@@ -1887,32 +1887,32 @@ with tab_cer_proj:
             f'{resultado_cer["cer_proyectado_fin"]:,.4f}'
         )
 
-        st.markdown("### Detalle del cálculo")
+        with st.expander("Detalle del cálculo (debug)", expanded=False):
 
-        df_detalle_cer = pd.DataFrame([{
-            "Fecha inicio": resultado_cer["fecha_inicio"].strftime("%d/%m/%Y"),
-            "Fecha objetivo": resultado_cer["fecha_objetivo"].strftime("%d/%m/%Y"),
-            "Fecha fin": resultado_cer["fecha_fin"].strftime("%d/%m/%Y"),
-            "Días hasta objetivo": resultado_cer["dias_hasta_obj"],
-            "Días del tramo": resultado_cer["dias_tramo"],
-            "Factor total": resultado_cer["factor_total"],
-            "Factor diario": resultado_cer["factor_diario"],
-            "CER conocido": cer_conocido,
-            "CER proyectado objetivo": resultado_cer["cer_proyectado_obj"],
-            "CER proyectado fin": resultado_cer["cer_proyectado_fin"],
-        }])
+            df_detalle_cer = pd.DataFrame([{
+                "Fecha inicio": resultado_cer["fecha_inicio"].strftime("%d/%m/%Y"),
+                "Fecha objetivo": resultado_cer["fecha_objetivo"].strftime("%d/%m/%Y"),
+                "Fecha fin": resultado_cer["fecha_fin"].strftime("%d/%m/%Y"),
+                "Días hasta objetivo": resultado_cer["dias_hasta_obj"],
+                "Días del tramo": resultado_cer["dias_tramo"],
+                "Factor total": resultado_cer["factor_total"],
+                "Factor diario": resultado_cer["factor_diario"],
+                "CER conocido": cer_conocido,
+                "CER proyectado objetivo": resultado_cer["cer_proyectado_obj"],
+                "CER proyectado fin": resultado_cer["cer_proyectado_fin"],
+            }])
 
-        st.dataframe(
-            df_detalle_cer.style.format({
-                "Factor total": "{:.6f}",
-                "Factor diario": "{:.8f}",
-                "CER conocido": "{:,.4f}",
-                "CER proyectado objetivo": "{:,.4f}",
-                "CER proyectado fin": "{:,.4f}",
-            }),
-            use_container_width=True,
-            hide_index=True
-        )
+            st.dataframe(
+                df_detalle_cer.style.format({
+                    "Factor total": "{:.6f}",
+                    "Factor diario": "{:.8f}",
+                    "CER conocido": "{:,.4f}",
+                    "CER proyectado objetivo": "{:,.4f}",
+                    "CER proyectado fin": "{:,.4f}",
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
 
         # =========================
         # RENDIMIENTO ESPERADO BONO CER

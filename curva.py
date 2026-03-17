@@ -1862,58 +1862,6 @@ with tab_cer_proj:
     if resultado_cer.get("error"):
         st.warning(resultado_cer["error"])
     else:
-        st.markdown("### Resultados")
-        k1, k2, k3 = st.columns(3)
-        k4, k5 = st.columns(2)
-
-        k1.metric(
-            "Fecha fin del tramo",
-            resultado_cer["fecha_fin"].strftime("%d/%m/%Y")
-        )
-        k2.metric(
-            "Días del tramo",
-            f'{resultado_cer["dias_tramo"]}'
-        )
-        k3.metric(
-            "Factor diario",
-            f'{resultado_cer["factor_diario"]:.8f}'
-        )
-        k4.metric(
-            "CER proyectado a fecha objetivo",
-            f'{resultado_cer["cer_proyectado_obj"]:,.4f}'
-        )
-        k5.metric(
-            "CER proyectado al 15 siguiente",
-            f'{resultado_cer["cer_proyectado_fin"]:,.4f}'
-        )
-
-        with st.expander("Detalle del cálculo (debug)", expanded=False):
-
-            df_detalle_cer = pd.DataFrame([{
-                "Fecha inicio": resultado_cer["fecha_inicio"].strftime("%d/%m/%Y"),
-                "Fecha objetivo": resultado_cer["fecha_objetivo"].strftime("%d/%m/%Y"),
-                "Fecha fin": resultado_cer["fecha_fin"].strftime("%d/%m/%Y"),
-                "Días hasta objetivo": resultado_cer["dias_hasta_obj"],
-                "Días del tramo": resultado_cer["dias_tramo"],
-                "Factor total": resultado_cer["factor_total"],
-                "Factor diario": resultado_cer["factor_diario"],
-                "CER conocido": cer_conocido,
-                "CER proyectado objetivo": resultado_cer["cer_proyectado_obj"],
-                "CER proyectado fin": resultado_cer["cer_proyectado_fin"],
-            }])
-
-            st.dataframe(
-                df_detalle_cer.style.format({
-                    "Factor total": "{:.6f}",
-                    "Factor diario": "{:.8f}",
-                    "CER conocido": "{:,.4f}",
-                    "CER proyectado objetivo": "{:,.4f}",
-                    "CER proyectado fin": "{:,.4f}",
-                }),
-                use_container_width=True,
-                hide_index=True
-            )
-
         # =========================
         # RENDIMIENTO ESPERADO BONO CER
         # =========================
@@ -1975,8 +1923,17 @@ with tab_cer_proj:
                             r8.metric("Días a vencimiento", f"{rendimiento_bono['dias_a_vto']}")
 
                             r9, r10 = st.columns(2)
-                            r9.metric("TIR esperada (%)", f"{rendimiento_bono['tir_esperada']:,.2f}%" if rendimiento_bono["tir_esperada"] is not None else "-")
-                            r10.metric("TNA esperada (%)", f"{rendimiento_bono['tna_esperada']:,.2f}%" if rendimiento_bono["tna_esperada"] is not None else "-")
+                            r9.metric(
+                                "TIR esperada (%)",
+                                f"{rendimiento_bono['tir_esperada']:,.2f}%"
+                                if rendimiento_bono["tir_esperada"] is not None else "-"
+                            )
+                            r10.metric(
+                                "TNA esperada (%)",
+                                f"{rendimiento_bono['tna_esperada']:,.2f}%"
+                                if rendimiento_bono["tna_esperada"] is not None else "-"
+                            )
+
 
 # =========================
 # TAB 2: CARRY TRADE

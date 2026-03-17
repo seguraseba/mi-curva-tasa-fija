@@ -1915,8 +1915,7 @@ with tab_cer_proj:
 
                             c1.metric("Ticker", ticker_cer)
                             c2.metric("Precio", f"{precio_actual_bono:,.2f}")
-                            c3.metric("Días", f"{rendimiento_bono['dias_a_vto']}")
-                            c4.metric("Vto - 10d", rendimiento_bono["fecha_vto_m10"].strftime("%d/%m/%Y"))
+                            c3.metric("Días a vencimiento", f"{rendimiento_bono['dias_a_vto']}")
 
                             st.markdown("---")
 

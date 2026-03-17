@@ -1911,11 +1911,12 @@ with tab_cer_proj:
                             # =========================
                             # FILA 1 — INFO GENERAL
                             # =========================
-                            c1, c2, c3 = st.columns(4)
+                            c1, c2, c3, c4 = st.columns(4)
 
                             c1.metric("Ticker", ticker_cer)
                             c2.metric("Precio", f"{precio_actual_bono:,.2f}")
                             c3.metric("Días a vencimiento", f"{rendimiento_bono['dias_a_vto']}")
+
 
                             st.markdown("---")
 

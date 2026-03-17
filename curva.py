@@ -1908,33 +1908,46 @@ with tab_cer_proj:
                         if rendimiento_bono.get("error"):
                             st.warning(rendimiento_bono["error"])
                         else:
-                            r1, r2, r3 = st.columns(3)
-                            r4, r5 = st.columns(2)
+                            # =========================
+                            # FILA 1 — INFO GENERAL
+                            # =========================
+                            c1, c2, c3, c4 = st.columns(4)
 
-                            r1.metric("Ticker", ticker_cer)
-                            r2.metric("Precio actual", f"{precio_actual_bono:,.2f}")
-                            r3.metric("Fecha vto - 10 hábiles", rendimiento_bono["fecha_vto_m10"].strftime("%d/%m/%Y"))
-                            r4.metric("CER final proyectado", f"{rendimiento_bono['cer_final_proyectado']:,.4f}")
-                            r5.metric("CER emisión - 10", f"{rendimiento_bono['cer_emis']:,.4f}")
+                            c1.metric("Ticker", ticker_cer)
+                            c2.metric("Precio", f"{precio_actual_bono:,.2f}")
+                            c3.metric("Días", f"{rendimiento_bono['dias_a_vto']}")
+                            c4.metric("Vto - 10d", rendimiento_bono["fecha_vto_m10"].strftime("%d/%m/%Y"))
 
-                            r6, r7, r8 = st.columns(3)
-                            r6.metric("Coeficiente CER esperado", f"{rendimiento_bono['coef_esperado']:,.6f}")
-                            r7.metric("VF esperado", f"{rendimiento_bono['vf_esperado']:,.4f}")
-                            r8.metric("Días a vencimiento", f"{rendimiento_bono['dias_a_vto']}")
+                            st.markdown("---")
 
-                            r9, r10 = st.columns(2)
-                            r9.metric(
-                                "TIR esperada (%)",
+                            # =========================
+                            # FILA 2 — DRIVERS CER
+                            # =========================
+                            c5, c6, c7 = st.columns(3)
+
+                            c5.metric("CER final", f"{rendimiento_bono['cer_final_proyectado']:,.4f}")
+                            c6.metric("CER emisión", f"{rendimiento_bono['cer_emis']:,.4f}")
+                            c7.metric("Coef CER", f"{rendimiento_bono['coef_esperado']:,.6f}")
+
+                            st.markdown("---")
+
+                            # =========================
+                            # FILA 3 — RESULTADO (FOCO)
+                            # =========================
+                            c8, c9 = st.columns(2)
+
+                            c8.metric(
+                                "TIR esperada",
                                 f"{rendimiento_bono['tir_esperada']:,.2f}%"
                                 if rendimiento_bono["tir_esperada"] is not None else "-"
                             )
-                            r10.metric(
-                                "TNA esperada (%)",
+
+                            c9.metric(
+                                "TNA esperada",
                                 f"{rendimiento_bono['tna_esperada']:,.2f}%"
                                 if rendimiento_bono["tna_esperada"] is not None else "-"
                             )
-
-
+                            
 # =========================
 # TAB 2: CARRY TRADE
 # =========================

@@ -1921,17 +1921,6 @@ with tab_cer_proj:
                             st.markdown("---")
 
                             # =========================
-                            # FILA 2 — DRIVERS CER
-                            # =========================
-                            c5, c6, c7 = st.columns(3)
-
-                            c5.metric("CER final", f"{rendimiento_bono['cer_final_proyectado']:,.4f}")
-                            c6.metric("CER emisión", f"{rendimiento_bono['cer_emis']:,.4f}")
-                            c7.metric("Coef CER", f"{rendimiento_bono['coef_esperado']:,.6f}")
-
-                            st.markdown("---")
-
-                            # =========================
                             # FILA 3 — RESULTADO (FOCO)
                             # =========================
                             c8, c9 = st.columns(2)

@@ -1210,6 +1210,75 @@ def color_precio(val):
     except Exception:
         return ""
 
+
+# =========================
+# HELPERS PROYECCION CER
+# =========================
+def fecha_15_mes_siguiente(fecha_base: date) -> date:
+    """
+    Devuelve el día 15 del mes siguiente a la fecha_base.
+    """
+    f = pd.Timestamp(fecha_base)
+    primer_dia_mes = pd.Timestamp(year=f.year, month=f.month, day=1)
+    f_sig = primer_dia_mes + relativedelta(months=1)
+    return date(f_sig.year, f_sig.month, 15)
+
+
+def proyectar_cer_tramo(
+    fecha_cer_conocido: date,
+    cer_conocido: float,
+    ipc_estimado_pct: float,
+    fecha_objetivo: date,
+) -> dict:
+    """
+    Proyecta el CER diariamente entre la fecha conocida y el 15 del mes siguiente,
+    distribuyendo el IPC mensual estimado con capitalización diaria.
+    """
+    if cer_conocido is None or ipc_estimado_pct is None:
+        return {"error": "Faltan datos de entrada."}
+
+    try:
+        cer_conocido = float(cer_conocido)
+        ipc_estimado_pct = float(ipc_estimado_pct)
+    except Exception:
+        return {"error": "CER conocido o IPC estimado inválido."}
+
+    if cer_conocido <= 0:
+        return {"error": "El CER conocido debe ser mayor a 0."}
+
+    fecha_inicio = pd.Timestamp(fecha_cer_conocido).date()
+    fecha_fin = fecha_15_mes_siguiente(fecha_inicio)
+    fecha_obj = pd.Timestamp(fecha_objetivo).date()
+
+    dias_tramo = (fecha_fin - fecha_inicio).days
+    if dias_tramo <= 0:
+        return {"error": "El tramo calculado no es válido."}
+
+    if fecha_obj < fecha_inicio or fecha_obj > fecha_fin:
+        return {
+            "error": f"La fecha objetivo debe estar entre {fecha_inicio.strftime('%d/%m/%Y')} y {fecha_fin.strftime('%d/%m/%Y')}."
+        }
+
+    dias_hasta_obj = (fecha_obj - fecha_inicio).days
+    factor_total = 1 + ipc_estimado_pct / 100.0
+    factor_diario = factor_total ** (1 / dias_tramo)
+
+    cer_proyectado_obj = cer_conocido * (factor_diario ** dias_hasta_obj)
+    cer_proyectado_fin = cer_conocido * (factor_diario ** dias_tramo)
+
+    return {
+        "fecha_inicio": fecha_inicio,
+        "fecha_fin": fecha_fin,
+        "fecha_objetivo": fecha_obj,
+        "dias_tramo": dias_tramo,
+        "dias_hasta_obj": dias_hasta_obj,
+        "factor_total": factor_total,
+        "factor_diario": factor_diario,
+        "cer_proyectado_obj": cer_proyectado_obj,
+        "cer_proyectado_fin": cer_proyectado_fin,
+        "error": None,
+    }
+
 # =========================
 # MAIN APP (CON PESTAÑAS)
 # =========================
@@ -1381,10 +1450,9 @@ if "bonos_spread" not in st.session_state:
 # PESTAÑAS
 # =========================
 
-tab_curvas, tab_leg, tab_corpos, tab_carry = st.tabs(
-    ["Curvas", "Spread Legislación", "Corporativos", "Carry Trade"]
+tab_curvas, tab_leg, tab_corpos, tab_cer_proj, tab_carry = st.tabs(
+    ["Curvas", "Spread Legislación", "Corporativos", "Proyección CER", "Carry Trade"]
 )
-
 # =========================
 # TAB 1: CURVAS (TU APP ACTUAL)
 # =========================
@@ -1640,6 +1708,114 @@ else:
             )
 
             st.plotly_chart(fig, use_container_width=True)
+
+
+# =========================
+# TAB: PROYECCION CER
+# =========================
+with tab_cer_proj:
+    st.subheader("Proyección CER")
+
+    st.caption(
+        "Proyección diaria del CER usando un IPC mensual estimado, "
+        "distribuido con capitalización diaria hasta el 15 del mes siguiente."
+    )
+
+    col_in_1, col_in_2 = st.columns(2)
+
+    with col_in_1:
+        fecha_cer_conocido = st.date_input(
+            "Fecha CER conocido",
+            value=date.today()
+        )
+
+        cer_conocido = st.number_input(
+            "CER conocido",
+            min_value=0.0,
+            value=1000.0,
+            step=0.0001,
+            format="%.4f"
+        )
+
+    with col_in_2:
+        ipc_estimado_pct = st.number_input(
+            "IPC estimado (%)",
+            value=3.0,
+            step=0.1,
+            format="%.4f"
+        )
+
+        fecha_fin_default = fecha_15_mes_siguiente(fecha_cer_conocido)
+
+        fecha_objetivo = st.date_input(
+            "Fecha objetivo",
+            value=fecha_fin_default,
+            min_value=fecha_cer_conocido,
+            max_value=fecha_fin_default
+        )
+
+    resultado_cer = proyectar_cer_tramo(
+        fecha_cer_conocido=fecha_cer_conocido,
+        cer_conocido=cer_conocido,
+        ipc_estimado_pct=ipc_estimado_pct,
+        fecha_objetivo=fecha_objetivo,
+    )
+
+    if resultado_cer.get("error"):
+        st.warning(resultado_cer["error"])
+    else:
+        st.markdown("### Resultados")
+
+        k1, k2, k3 = st.columns(3)
+        k4, k5 = st.columns(2)
+
+        k1.metric(
+            "Fecha fin del tramo",
+            resultado_cer["fecha_fin"].strftime("%d/%m/%Y")
+        )
+        k2.metric(
+            "Días del tramo",
+            f'{resultado_cer["dias_tramo"]}'
+        )
+        k3.metric(
+            "Factor diario",
+            f'{resultado_cer["factor_diario"]:.8f}'
+        )
+        k4.metric(
+            "CER proyectado a fecha objetivo",
+            f'{resultado_cer["cer_proyectado_obj"]:,.4f}'
+        )
+        k5.metric(
+            "CER proyectado al 15 siguiente",
+            f'{resultado_cer["cer_proyectado_fin"]:,.4f}'
+        )
+
+        st.markdown("### Detalle del cálculo")
+
+        df_detalle_cer = pd.DataFrame([{
+            "Fecha inicio": resultado_cer["fecha_inicio"].strftime("%d/%m/%Y"),
+            "Fecha objetivo": resultado_cer["fecha_objetivo"].strftime("%d/%m/%Y"),
+            "Fecha fin": resultado_cer["fecha_fin"].strftime("%d/%m/%Y"),
+            "Días hasta objetivo": resultado_cer["dias_hasta_obj"],
+            "Días del tramo": resultado_cer["dias_tramo"],
+            "Factor total": resultado_cer["factor_total"],
+            "Factor diario": resultado_cer["factor_diario"],
+            "CER conocido": cer_conocido,
+            "CER proyectado objetivo": resultado_cer["cer_proyectado_obj"],
+            "CER proyectado fin": resultado_cer["cer_proyectado_fin"],
+        }])
+
+        st.dataframe(
+            df_detalle_cer.style.format({
+                "Factor total": "{:.6f}",
+                "Factor diario": "{:.8f}",
+                "CER conocido": "{:,.4f}",
+                "CER proyectado objetivo": "{:,.4f}",
+                "CER proyectado fin": "{:,.4f}",
+            }),
+            use_container_width=True,
+            hide_index=True
+        )
 
 # =========================
 # TAB 2: CARRY TRADE

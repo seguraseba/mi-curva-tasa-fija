@@ -1779,14 +1779,14 @@ else:
 # TAB: PROYECCION CER
 # =========================
 with tab_cer_proj:
-    st.subheader("Proyección CER")
+    st.subheader("Rendimiento esperado bono CER")
 
     st.caption(
         "Proyección diaria del CER usando un IPC mensual estimado, "
         "distribuido con capitalización diaria hasta el 15 del mes siguiente."
     )
 
-    # -------------------------
+    # -------------------------s
     # TOMAR ULTIMO CER DESDE EXCEL
     # -------------------------
     if cer_df is not None and not cer_df.empty:

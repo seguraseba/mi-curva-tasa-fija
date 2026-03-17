@@ -1345,6 +1345,137 @@ def rendimiento_esperado_cer_cupon_cero(
 
 
 # =========================
+# HELPERS PROYECCION CER MULTI-MES
+# =========================
+MESES_ES = {
+    1: "Enero",
+    2: "Febrero",
+    3: "Marzo",
+    4: "Abril",
+    5: "Mayo",
+    6: "Junio",
+    7: "Julio",
+    8: "Agosto",
+    9: "Septiembre",
+    10: "Octubre",
+    11: "Noviembre",
+    12: "Diciembre",
+}
+
+
+def etiqueta_mes_es(fecha_ref: date) -> str:
+    return f"{MESES_ES[fecha_ref.month]} {fecha_ref.year}"
+
+
+def construir_tabla_supuestos_ipc(
+    fecha_base: date,
+    n_meses: int,
+    ipc_default: float = 3.0
+) -> pd.DataFrame:
+    """
+    Construye la tabla de supuestos de IPC para proyectar CER
+    desde fecha_base hacia adelante por n_meses tramos.
+    """
+    filas = []
+
+    fecha_base_ts = pd.Timestamp(fecha_base).date()
+
+    for i in range(n_meses):
+        fecha_inicio = (pd.Timestamp(fecha_base_ts) + relativedelta(months=i)).date()
+        fecha_fin = (pd.Timestamp(fecha_base_ts) + relativedelta(months=i + 1)).date()
+
+        # El tramo fecha_inicio -> fecha_fin usa el IPC del mes anterior a fecha_inicio
+        mes_ipc_ref = (pd.Timestamp(fecha_inicio) - relativedelta(months=1)).date()
+
+        filas.append({
+            "Mes IPC": etiqueta_mes_es(mes_ipc_ref),
+            "IPC estimado (%)": ipc_default,
+            "Fecha inicio tramo": fecha_inicio.strftime("%d/%m/%Y"),
+            "Fecha fin tramo": fecha_fin.strftime("%d/%m/%Y"),
+        })
+
+    return pd.DataFrame(filas)
+
+
+def proyectar_cer_multi_tramos(
+    fecha_cer_conocido: date,
+    cer_conocido: float,
+    supuestos_ipc_df: pd.DataFrame,
+    fecha_objetivo: date,
+) -> dict:
+    """
+    Proyecta CER usando múltiples tramos mensuales.
+    Cada tramo distribuye diariamente el IPC supuesto correspondiente.
+    """
+    try:
+        cer_actual = float(cer_conocido)
+    except Exception:
+        return {"error": "CER conocido inválido."}
+
+    if cer_actual <= 0:
+        return {"error": "CER conocido debe ser mayor a 0."}
+
+    if supuestos_ipc_df is None or supuestos_ipc_df.empty:
+        return {"error": "No hay supuestos de IPC cargados."}
+
+    fecha_obj = pd.Timestamp(fecha_objetivo).date()
+
+    detalle = []
+
+    for _, row in supuestos_ipc_df.iterrows():
+        try:
+            fecha_inicio = pd.to_datetime(row["Fecha inicio tramo"], dayfirst=True).date()
+            fecha_fin = pd.to_datetime(row["Fecha fin tramo"], dayfirst=True).date()
+            ipc_pct = float(row["IPC estimado (%)"])
+        except Exception:
+            return {"error": "Hay un supuesto de IPC inválido en la tabla."}
+
+        dias_tramo = (fecha_fin - fecha_inicio).days
+        if dias_tramo <= 0:
+            return {"error": "Se detectó un tramo inválido en la tabla de supuestos."}
+
+        factor_total = 1 + ipc_pct / 100.0
+        factor_diario = factor_total ** (1 / dias_tramo)
+
+        detalle.append({
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+            "ipc_pct": ipc_pct,
+            "factor_total": factor_total,
+            "factor_diario": factor_diario,
+            "cer_inicio": cer_actual,
+        })
+
+        # Si la fecha objetivo cae dentro de este tramo
+        if fecha_inicio <= fecha_obj <= fecha_fin:
+            dias_hasta_obj = (fecha_obj - fecha_inicio).days
+            cer_obj = cer_actual * (factor_diario ** dias_hasta_obj)
+
+            return {
+                "fecha_inicio_global": pd.Timestamp(fecha_cer_conocido).date(),
+                "fecha_objetivo": fecha_obj,
+                "fecha_max_proyectable": fecha_fin,
+                "cer_proyectado_obj": cer_obj,
+                "detalle": detalle,
+                "error": None,
+            }
+
+        # Si todavía no llegamos al objetivo, cerramos este tramo completo
+        cer_actual = cer_actual * factor_total
+
+    fecha_max = pd.to_datetime(supuestos_ipc_df.iloc[-1]["Fecha fin tramo"], dayfirst=True).date()
+
+    return {
+        "error": (
+            f"La fecha objetivo ({fecha_obj.strftime('%d/%m/%Y')}) queda fuera del horizonte proyectado. "
+            f"Extendé los supuestos de IPC hasta al menos {fecha_obj.strftime('%d/%m/%Y')}. "
+            f"Hoy llegás hasta {fecha_max.strftime('%d/%m/%Y')}."
+        )
+    }
+
+
+
+# =========================
 # MAIN APP (CON PESTAÑAS)
 # =========================
 
@@ -1827,37 +1958,65 @@ with tab_cer_proj:
         # variables internas (sin input del usuario)
         fecha_cer_conocido = fecha_cer_default
         cer_conocido = cer_conocido_default
-
-
+    
     with col_in_2:
-        ipc_estimado_pct = st.number_input(
-            "IPC estimado (%)",
-            value=3.0,
-            step=0.1,
-            format="%.4f"
-        )
-
         ticker_cer = st.selectbox(
             "Ticker CER",
             options=tickers_cer_calc,
             index=0 if tickers_cer_calc else None
         )
 
-        fecha_fin_default = fecha_15_mes_siguiente(fecha_cer_conocido)
-
-        fecha_objetivo = st.date_input(
-            "Fecha objetivo",
-            value=fecha_fin_default,
-            min_value=fecha_cer_conocido,
-            max_value=fecha_fin_default
+        meses_proyeccion = st.slider(
+            "Cantidad de meses a proyectar",
+            min_value=1,
+            max_value=12,
+            value=3
         )
 
-    resultado_cer = proyectar_cer_tramo(
+    # -------------------------
+    # TABLA DE SUPUESTOS IPC
+    # -------------------------
+    firma_supuestos = f"{fecha_cer_conocido.isoformat()}_{meses_proyeccion}"
+
+    if st.session_state.get("firma_supuestos_ipc") != firma_supuestos:
+        st.session_state["firma_supuestos_ipc"] = firma_supuestos
+        st.session_state["df_supuestos_ipc"] = construir_tabla_supuestos_ipc(
+            fecha_base=fecha_cer_conocido,
+            n_meses=meses_proyeccion,
+            ipc_default=3.0
+        )
+
+    st.markdown("### Supuestos de inflación")
+    st.caption(
+        "Cada tramo CER usa el IPC del mes indicado. "
+        "Podés editar solo la columna 'IPC estimado (%)'."
+    )
+
+    df_supuestos_ipc_edit = st.data_editor(
+        st.session_state["df_supuestos_ipc"],
+        use_container_width=True,
+        hide_index=True,
+        disabled=["Mes IPC", "Fecha inicio tramo", "Fecha fin tramo"],
+        key="editor_supuestos_ipc"
+    )
+
+    st.session_state["df_supuestos_ipc"] = df_supuestos_ipc_edit.copy()
+
+
+    # resultado_cer se usa ahora solo como "horizonte proyectable"
+    # para no romper la estructura del código más abajo
+    if ticker_cer in FECHA_VENCIMIENTO:
+        fecha_objetivo_bono_preview = (pd.Timestamp(FECHA_VENCIMIENTO[ticker_cer]).normalize() - BDay(10)).date()
+    else:
+        fecha_objetivo_bono_preview = fecha_cer_conocido
+
+    resultado_cer = proyectar_cer_multi_tramos(
         fecha_cer_conocido=fecha_cer_conocido,
         cer_conocido=cer_conocido,
-        ipc_estimado_pct=ipc_estimado_pct,
-        fecha_objetivo=fecha_objetivo,
+        supuestos_ipc_df=st.session_state["df_supuestos_ipc"],
+        fecha_objetivo=fecha_objetivo_bono_preview,
     )
+    
 
     if resultado_cer.get("error"):
         st.warning(resultado_cer["error"])
@@ -1886,12 +2045,14 @@ with tab_cer_proj:
                         f"({resultado_cer['fecha_inicio'].strftime('%d/%m/%Y')} a {resultado_cer['fecha_fin'].strftime('%d/%m/%Y')})."
                     )
                 else:
-                    resultado_bono = proyectar_cer_tramo(
+                    resultado_bono = proyectar_cer_multi_tramos(
                         fecha_cer_conocido=fecha_cer_conocido,
                         cer_conocido=cer_conocido,
-                        ipc_estimado_pct=ipc_estimado_pct,
+                        supuestos_ipc_df=st.session_state["df_supuestos_ipc"],
                         fecha_objetivo=fecha_objetivo_bono,
                     )
+
+                       
 
                     if resultado_bono.get("error"):
                         st.warning(resultado_bono["error"])

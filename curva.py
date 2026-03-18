@@ -2164,6 +2164,7 @@ with tab_cer_proj:
         fecha_cer_conocido = fecha_cer_default
         cer_conocido = cer_conocido_default
     
+
     with col_in_2:
         ticker_cer = st.selectbox(
             "Ticker CER",
@@ -2171,12 +2172,19 @@ with tab_cer_proj:
             index=0 if tickers_cer_calc else None
         )
 
-        meses_proyeccion = st.slider(
-            "Cantidad de meses a proyectar",
-            min_value=1,
-            max_value=12,
-            value=3
-        )
+        if ticker_cer in FECHA_VENCIMIENTO:
+            fecha_vto_ticker = pd.Timestamp(FECHA_VENCIMIENTO[ticker_cer]).normalize()
+            fecha_objetivo_bono_auto = (fecha_vto_ticker - BDay(10)).date()
+            meses_proyeccion = meses_necesarios_hasta_fecha(
+                fecha_cer_conocido,
+                fecha_objetivo_bono_auto
+            )
+        else:
+            fecha_objetivo_bono_auto = fecha_cer_conocido
+            meses_proyeccion = 1
+
+        st.metric("Fecha objetivo bono", fecha_objetivo_bono_auto.strftime("%d/%m/%Y"))
+        st.metric("Meses a proyectar", f"{meses_proyeccion}")
 
     # -------------------------
     # TABLA DE SUPUESTOS IPC
@@ -2212,10 +2220,7 @@ with tab_cer_proj:
 
     # resultado_cer se usa ahora solo como "horizonte proyectable"
     # para no romper la estructura del código más abajo
-    if ticker_cer in FECHA_VENCIMIENTO:
-        fecha_objetivo_bono_preview = (pd.Timestamp(FECHA_VENCIMIENTO[ticker_cer]).normalize() - BDay(10)).date()
-    else:
-        fecha_objetivo_bono_preview = fecha_cer_conocido
+    fecha_objetivo_bono_preview = fecha_objetivo_bono_auto
 
     resultado_cer = proyectar_cer_multi_tramos(
         fecha_cer_conocido=fecha_cer_conocido,
@@ -2241,8 +2246,7 @@ with tab_cer_proj:
             else:
                 precio_actual_bono = pd.to_numeric(row_bono.iloc[0]["c"], errors="coerce")
 
-                fecha_vto = FECHA_VENCIMIENTO.get(ticker_cer)
-                fecha_objetivo_bono = (pd.Timestamp(fecha_vto).normalize() - BDay(10)).date()
+                fecha_objetivo_bono = fecha_objetivo_bono_auto
 
                 # validar que la fecha objetivo del bono esté dentro del horizonte proyectable
                 if (

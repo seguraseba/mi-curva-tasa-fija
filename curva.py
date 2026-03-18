@@ -16,6 +16,14 @@ st.set_page_config(
     layout="wide",  # importante para ver tabla y gráfico lado a lado
 )
 
+st.markdown("""
+<style>
+    section[data-testid="stSidebar"] {
+        display: none;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # =========================
 # BUSQUEDA DE ARCHIVOS (MULTI PC)
 # =========================
@@ -90,9 +98,8 @@ cer_file = buscar_archivo(CER_PATHS)
 
 if cer_file is not None:
     cer_df = cargar_cer(cer_file, cer_file.stat().st_mtime)
-    st.sidebar.success(f"✅ CER cargado desde: {cer_file}")
 else:
-    st.sidebar.error("❌ No se encontró CER.xlsx en ninguna ruta configurada.")
+    st.error("❌ No se encontró CER.xlsx en ninguna ruta configurada.")
     st.stop()
 
 # =========================
@@ -106,10 +113,8 @@ corpos_file = buscar_archivo(CORPOS_PATHS)
 
 if corpos_file is not None:
     corpos_df = cargar_corpos(corpos_file, corpos_file.stat().st_mtime)
-    st.sidebar.success(f"✅ Corporativos cargados desde: {corpos_file}")
 else:
     corpos_df = pd.DataFrame()
-    st.sidebar.warning("⚠️ No se encontró corpos.xlsx en ninguna ruta configurada.")
 
 from pandas.tseries.offsets import BDay
 

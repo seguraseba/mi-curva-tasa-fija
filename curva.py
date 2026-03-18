@@ -2197,6 +2197,7 @@ with tab_cer_proj:
         "Podés editar solo la columna 'IPC estimado (%)'."
     )
 
+
     df_supuestos_ipc_edit = st.data_editor(
         st.session_state["df_supuestos_ipc"],
         use_container_width=True,
@@ -2205,8 +2206,8 @@ with tab_cer_proj:
         key="editor_supuestos_ipc"
     )
 
-    st.session_state["df_supuestos_ipc"] = df_supuestos_ipc_edit.copy()
-
+    if st.button("Aplicar cambios IPC"):
+        st.session_state["df_supuestos_ipc"] = df_supuestos_ipc_edit.copy()
 
     # resultado_cer se usa ahora solo como "horizonte proyectable"
     # para no romper la estructura del código más abajo

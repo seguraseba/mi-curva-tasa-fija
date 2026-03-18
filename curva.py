@@ -2195,7 +2195,7 @@ with tab_cer_proj:
     st.caption(
         "Cada tramo CER usa el IPC del mes indicado. "
         "Podés editar solo la columna 'IPC estimado (%)'."
-        "Tocar ""Aplicar cambios IPC"" para ver rendimiento según la estimación"
+        "Tocar 'Aplicar cambios IPC' para ver rendimiento según la estimación."
     )
 
 

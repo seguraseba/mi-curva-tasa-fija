@@ -300,6 +300,16 @@ PARES_LEGISLACION = [
     {"par": "AL41 / GD41", "ticker_al": "AL41D", "ticker_gd": "GD41D"},
 ]
 
+# =========================
+# PARES INFLACION IMPLICITA
+# =========================
+PARES_INFLACION_IMPLICITA = [
+    {"ticker_fija": "S29Y6", "ticker_cer": "X29Y6", "par": "S29Y6 / X29Y6"},
+    {"ticker_fija": "S31L6", "ticker_cer": "X31L6", "par": "S31L6 / X31L6"},
+    {"ticker_fija": "S30N6", "ticker_cer": "X30N6", "par": "S30N6 / X30N6"},
+    {"ticker_fija": "T30A7", "ticker_cer": "TZXA7", "par": "T30A7 / TZXA7"},
+]
+
 LETRAS_TARGET = [
     "S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S29Y6", "S31L6", "S31G6", "S30O6", "X29Y6","X15Y6", "X30N6", "X31L6"
 ]
@@ -1473,6 +1483,201 @@ def proyectar_cer_multi_tramos(
         )
     }
 
+# =========================
+# HELPERS INFLACION IMPLICITA
+# =========================
+def meses_necesarios_hasta_fecha(fecha_base: date, fecha_objetivo: date) -> int:
+    """
+    Devuelve cuántos tramos mensuales hacen falta para cubrir una fecha objetivo.
+    """
+    fb = pd.Timestamp(fecha_base).date()
+    fo = pd.Timestamp(fecha_objetivo).date()
+
+    meses = 0
+    cursor = fb
+
+    while cursor < fo:
+        cursor = (pd.Timestamp(cursor) + relativedelta(months=1)).date()
+        meses += 1
+
+        if meses > 240:
+            break
+
+    return max(meses, 1)
+
+
+def tir_esperada_cer_con_inflacion_plana(
+    symbol_cer: str,
+    inflacion_mensual_pct: float,
+    fecha_cer_conocido: date,
+    cer_conocido: float,
+    fecha_emision_map: dict,
+    fecha_vencimiento_map: dict,
+    cer_df: pd.DataFrame,
+    df_cer: pd.DataFrame,
+) -> float | None:
+    """
+    Calcula la TIR esperada de un bono CER cupón cero usando una inflación
+    mensual plana repetida en todos los tramos hasta vto - 10 hábiles.
+    """
+    symbol_cer = str(symbol_cer).strip().upper()
+
+    if symbol_cer not in fecha_vencimiento_map:
+        return None
+
+    row_bono = df_cer[df_cer["symbol"].astype(str).str.upper() == symbol_cer]
+    if row_bono.empty:
+        return None
+
+    precio_actual = pd.to_numeric(row_bono.iloc[0]["c"], errors="coerce")
+    if pd.isna(precio_actual) or float(precio_actual) <= 0:
+        return None
+
+    fecha_vto = pd.Timestamp(fecha_vencimiento_map[symbol_cer]).normalize()
+    fecha_objetivo_bono = (fecha_vto - BDay(10)).date()
+
+    n_meses = meses_necesarios_hasta_fecha(fecha_cer_conocido, fecha_objetivo_bono)
+
+    df_supuestos = construir_tabla_supuestos_ipc(
+        fecha_base=fecha_cer_conocido,
+        n_meses=n_meses,
+        ipc_default=inflacion_mensual_pct
+    )
+    df_supuestos["IPC estimado (%)"] = float(inflacion_mensual_pct)
+
+    resultado_bono = proyectar_cer_multi_tramos(
+        fecha_cer_conocido=fecha_cer_conocido,
+        cer_conocido=cer_conocido,
+        supuestos_ipc_df=df_supuestos,
+        fecha_objetivo=fecha_objetivo_bono,
+    )
+
+    if resultado_bono.get("error"):
+        return None
+
+    rendimiento_bono = rendimiento_esperado_cer_cupon_cero(
+        symbol=symbol_cer,
+        precio_actual=precio_actual,
+        cer_proyectado_final=resultado_bono["cer_proyectado_obj"],
+        fecha_emision_map=fecha_emision_map,
+        fecha_vencimiento_map=fecha_vencimiento_map,
+        cer_df=cer_df,
+    )
+
+    if rendimiento_bono.get("error"):
+        return None
+
+    return rendimiento_bono.get("tir_esperada")
+
+
+def inflacion_implicita_par(
+    ticker_fija: str,
+    ticker_cer: str,
+    df_tf: pd.DataFrame,
+    df_cer: pd.DataFrame,
+    fecha_cer_conocido: date,
+    cer_conocido: float,
+    fecha_emision_map: dict,
+    fecha_vencimiento_map: dict,
+    cer_df: pd.DataFrame,
+    lower: float = -5.0,
+    upper: float = 15.0,
+    tol: float = 1e-4,
+    max_iter: int = 80,
+) -> dict:
+    """
+    Busca la inflación mensual plana que iguala la TIR del CER con la TIR
+    actual del instrumento de tasa fija equivalente.
+    """
+    ticker_fija = str(ticker_fija).strip().upper()
+    ticker_cer = str(ticker_cer).strip().upper()
+
+    row_fija = df_tf[df_tf["symbol"].astype(str).str.upper() == ticker_fija]
+    if row_fija.empty:
+        return {"error": f"No se encontró {ticker_fija} en tasa fija."}
+
+    tir_fija = pd.to_numeric(row_fija.iloc[0]["TIR (%)"], errors="coerce")
+    dias_fija = pd.to_numeric(row_fija.iloc[0]["dias_a_vencimiento"], errors="coerce")
+
+    if pd.isna(tir_fija):
+        return {"error": f"No hay TIR válida para {ticker_fija}."}
+
+    def f(ipc_mensual):
+        tir_cer = tir_esperada_cer_con_inflacion_plana(
+            symbol_cer=ticker_cer,
+            inflacion_mensual_pct=ipc_mensual,
+            fecha_cer_conocido=fecha_cer_conocido,
+            cer_conocido=cer_conocido,
+            fecha_emision_map=fecha_emision_map,
+            fecha_vencimiento_map=fecha_vencimiento_map,
+            cer_df=cer_df,
+            df_cer=df_cer,
+        )
+        if tir_cer is None:
+            return None
+        return tir_cer - float(tir_fija)
+
+    f_low = f(lower)
+    f_high = f(upper)
+
+    if f_low is None or f_high is None:
+        return {"error": f"No se pudo evaluar el par {ticker_fija} / {ticker_cer}."}
+
+    if f_low == 0:
+        raiz = lower
+    elif f_high == 0:
+        raiz = upper
+    elif f_low * f_high > 0:
+        return {
+            "error": (
+                f"No se encontró raíz para {ticker_fija} / {ticker_cer} "
+                f"en el rango [{lower}%, {upper}%]."
+            )
+        }
+    else:
+        a, b = lower, upper
+        raiz = None
+
+        for _ in range(max_iter):
+            m = (a + b) / 2
+            fm = f(m)
+
+            if fm is None:
+                return {"error": f"No se pudo evaluar el punto medio para {ticker_fija} / {ticker_cer}."}
+
+            if abs(fm) < tol:
+                raiz = m
+                break
+
+            if f_low * fm < 0:
+                b = m
+                f_high = fm
+            else:
+                a = m
+                f_low = fm
+
+            raiz = m
+
+    tir_cer_final = tir_esperada_cer_con_inflacion_plana(
+        symbol_cer=ticker_cer,
+        inflacion_mensual_pct=raiz,
+        fecha_cer_conocido=fecha_cer_conocido,
+        cer_conocido=cer_conocido,
+        fecha_emision_map=fecha_emision_map,
+        fecha_vencimiento_map=fecha_vencimiento_map,
+        cer_df=cer_df,
+        df_cer=df_cer,
+    )
+
+    return {
+        "ticker_fija": ticker_fija,
+        "ticker_cer": ticker_cer,
+        "tir_fija": float(tir_fija),
+        "tir_cer_eq": tir_cer_final,
+        "inflacion_implicita_mensual": raiz,
+        "dias": int(dias_fija) if pd.notna(dias_fija) else None,
+        "error": None,
+    }
 
 
 # =========================
@@ -2102,6 +2307,74 @@ with tab_cer_proj:
                                 f"{rendimiento_bono['tna_esperada']:,.2f}%"
                                 if rendimiento_bono["tna_esperada"] is not None else "-"
                             )
+                            
+        # =========================
+        # CURVA DE INFLACION IMPLICITA
+        # =========================
+        st.markdown("---")
+        st.markdown("### Curva de inflación implícita CER vs tasa fija")
+
+        resultados_implicita = []
+
+        for par in PARES_INFLACION_IMPLICITA:
+            out = inflacion_implicita_par(
+                ticker_fija=par["ticker_fija"],
+                ticker_cer=par["ticker_cer"],
+                df_tf=df_tf,
+                df_cer=df_cer,
+                fecha_cer_conocido=fecha_cer_conocido,
+                cer_conocido=cer_conocido,
+                fecha_emision_map=FECHA_EMISION,
+                fecha_vencimiento_map=FECHA_VENCIMIENTO,
+                cer_df=cer_df,
+            )
+
+            if out.get("error") is None:
+                resultados_implicita.append({
+                    "Par": f"{par['ticker_fija']} / {par['ticker_cer']}",
+                    "Ticker fija": out["ticker_fija"],
+                    "Ticker CER": out["ticker_cer"],
+                    "Días": out["dias"],
+                    "TIR fija (%)": out["tir_fija"],
+                    "Inflación implícita mensual (%)": out["inflacion_implicita_mensual"],
+                    "TIR CER eq (%)": out["tir_cer_eq"],
+                })
+
+        if not resultados_implicita:
+            st.info("No se pudieron calcular pares de inflación implícita con los supuestos actuales.")
+        else:
+            df_implicita = pd.DataFrame(resultados_implicita).sort_values("Días").reset_index(drop=True)
+
+            st.dataframe(
+                df_implicita.style.format({
+                    "TIR fija (%)": "{:,.2f}",
+                    "Inflación implícita mensual (%)": "{:,.3f}",
+                    "TIR CER eq (%)": "{:,.2f}",
+                }),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            fig_imp = go.Figure()
+            fig_imp.add_trace(go.Scatter(
+                x=df_implicita["Días"],
+                y=df_implicita["Inflación implícita mensual (%)"],
+                mode="lines+markers+text",
+                text=df_implicita["Par"],
+                textposition="top center",
+                name="Inflación implícita mensual"
+            ))
+
+            fig_imp.update_layout(
+                title="Curva de inflación implícita",
+                xaxis_title="Días a vencimiento",
+                yaxis_title="Inflación implícita mensual (%)",
+                template="plotly_white",
+                hovermode="closest"
+            )
+
+            st.plotly_chart(fig_imp, use_container_width=True)
+
                             
 # =========================
 # TAB 2: CARRY TRADE

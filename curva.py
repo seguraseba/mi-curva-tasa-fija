@@ -342,6 +342,7 @@ PARES_LEGISLACION = [
 # =========================
 PARES_INFLACION_IMPLICITA = [
     {"ticker_fija": "S29Y6", "ticker_cer": "X29Y6", "par": "S29Y6 / X29Y6"},
+    {"ticker_fija": "T30J6", "ticker_cer": "TZX26", "par": "T30J6 / TZX26"},
     {"ticker_fija": "S31L6", "ticker_cer": "X31L6", "par": "S31L6 / X31L6"},
     {"ticker_fija": "S30N6", "ticker_cer": "X30N6", "par": "S30N6 / X30N6"},
     {"ticker_fija": "T30A7", "ticker_cer": "TZXA7", "par": "T30A7 / TZXA7"},

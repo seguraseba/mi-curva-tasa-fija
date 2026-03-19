@@ -8,6 +8,9 @@ import plotly.graph_objects as go
 from pandas.tseries.offsets import CustomBusinessDay
 from pathlib import Path
 
+
+
+
 # =========================
 # CONFIG STREAMLIT
 # =========================
@@ -119,7 +122,7 @@ else:
 from pandas.tseries.offsets import BDay
 
 def menos_10_habiles(d: date) -> pd.Timestamp:
-    return (pd.Timestamp(d).normalize() - BDay(10))
+    return (pd.Timestamp(d).normalize() - 10 * ARG_BDAY)
 
 def cer_en_o_antes(cer_df: pd.DataFrame, fecha: pd.Timestamp) -> float | None:
     s = cer_df.loc[cer_df["fecha"] <= fecha, "cer"]
@@ -142,10 +145,10 @@ def rendimiento_cer_bono(symbol: str, cer_df: pd.DataFrame, fecha_emision_map: d
         return {"error": "No hay fecha de emisión cargada"}
 
     fecha_liq = (pd.Timestamp.today().normalize() + pd.Timedelta(days=1))  # hoy + 1
-    f_liq_m10 = fecha_liq - BDay(10)
+    f_liq_m10 = fecha_liq - 10 * ARG_BDAY
 
     fecha_emis = fecha_emision_map[symbol]
-    f_emis_m10 = pd.Timestamp(fecha_emis).normalize() - BDay(10)
+    f_emis_m10 = pd.Timestamp(fecha_emis).normalize() - 10 * ARG_BDAY
 
     cer_liq = cer_en_o_antes(cer_df, f_liq_m10)
     cer_emis = cer_en_o_antes(cer_df, f_emis_m10)
@@ -174,10 +177,10 @@ def cer_coef_desde_emision(symbol: str, cer_df: pd.DataFrame, fecha_emision_map:
 
     # liquidación = hoy + 1
     fecha_liq = (pd.Timestamp.today().normalize() + pd.Timedelta(days=1))
-    f_liq_m10 = fecha_liq - BDay(10)
+    f_liq_m10 = fecha_liq - 10 * ARG_BDAY
 
     fecha_emis = fecha_emision_map[symbol]
-    f_emis_m10 = pd.Timestamp(fecha_emis).normalize() - BDay(10)
+    f_emis_m10 = pd.Timestamp(fecha_emis).normalize() - 10 * ARG_BDAY
 
     cer_liq = cer_en_o_antes(cer_df, f_liq_m10)
     cer_emis = cer_en_o_antes(cer_df, f_emis_m10)
@@ -238,6 +241,35 @@ def rendimiento_real_por_precio(precio: float, factor_cer: float) -> float | Non
     return (precio / factor_cer  - 1) * 100
 
 
+from pandas.tseries.offsets import CustomBusinessDay
+
+feriados_arg = [
+    "2026-01-01",
+    "2026-02-16",
+    "2026-02-17",
+    "2026-03-23",
+    "2026-03-24",
+    "2026-04-02",
+    "2026-04-03",
+    "2026-05-01",
+    "2026-05-25",
+    "2026-06-15",
+    "2026-06-20",
+    "2026-07-09",
+    "2026-07-10",
+    "2026-08-17",
+    "2026-10-12",
+    "2026-11-23",
+    "2026-12-07",
+    "2026-12-08",
+    "2026-12-24",
+    "2026-12-25",
+    "2026-12-31"
+]
+
+feriados_arg = pd.to_datetime(feriados_arg)
+
+ARG_BDAY = CustomBusinessDay(holidays=feriados_arg)
 
 
 # =========================
@@ -1328,8 +1360,8 @@ def rendimiento_esperado_cer_cupon_cero(
     fecha_emis = pd.Timestamp(fecha_emision_map[symbol]).normalize()
     fecha_vto = pd.Timestamp(fecha_vencimiento_map[symbol]).normalize()
 
-    f_emis_m10 = fecha_emis - BDay(10)
-    f_vto_m10 = fecha_vto - BDay(10)
+    f_emis_m10 = fecha_emis - 10 * ARG_BDAY
+    f_vto_m10 = fecha_vto - 10 * ARG_BDAY
 
     cer_emis = cer_en_o_antes(cer_df, f_emis_m10)
 
@@ -1539,7 +1571,7 @@ def tir_esperada_cer_con_inflacion_plana(
         return None
 
     fecha_vto = pd.Timestamp(fecha_vencimiento_map[symbol_cer]).normalize()
-    fecha_objetivo_bono = (fecha_vto - BDay(10)).date()
+    fecha_objetivo_bono = (fecha_vto - 10 * ARG_BDAY).date()
 
     n_meses = meses_necesarios_hasta_fecha(fecha_cer_conocido, fecha_objetivo_bono)
 
@@ -2179,7 +2211,7 @@ with tab_cer_proj:
 
         if ticker_cer in FECHA_VENCIMIENTO:
             fecha_vto_ticker = pd.Timestamp(FECHA_VENCIMIENTO[ticker_cer]).normalize()
-            fecha_objetivo_bono_auto = (fecha_vto_ticker - BDay(10)).date()
+            fecha_objetivo_bono_auto = (fecha_vto_ticker - 10 * ARG_BDAY).date()
             meses_proyeccion = meses_necesarios_hasta_fecha(
                 fecha_cer_conocido,
                 fecha_objetivo_bono_auto

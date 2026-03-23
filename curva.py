@@ -857,7 +857,13 @@ def soberanos_usd_lista():
         axis=1
     )
 
-    df = df[["bono", "symbol", "precio", "vencimiento", "años_al_vto", "tir"]]
+    df["duration"] = df.apply(
+        lambda row: macaulay_duration(row["bono"], row["precio"], row["tir"]),
+        axis=1
+    )   
+
+
+    df = df[["bono", "symbol", "precio", "vencimiento", "años_al_vto", "tir", "duration"]]
     df = df.sort_values("vencimiento").reset_index(drop=True)
 
     return df
@@ -999,6 +1005,42 @@ def calcular_tir_soberano(symbol: str, precio_limpio: float, vn: float = 100.0):
         return None
 
 from pandas.tseries.offsets import BDay
+
+def macaulay_duration(symbol: str, precio_limpio: float, tir: float, vn: float = 100.0):
+    if symbol not in BOND_RULES or tir is None:
+        return None
+
+    rules = BOND_RULES[symbol]
+    df = generar_flujos_soberano(symbol, rules, vn=vn)
+
+    if df.empty:
+        return None
+
+    hoy = pd.Timestamp.today().normalize()
+
+    # convertir tir a decimal
+    y = float(tir)
+
+    pv_total = 0.0
+    weighted_sum = 0.0
+
+    for _, row in df.iterrows():
+        fecha = row["fecha"]
+        flujo = row["flujo"]
+
+        t = (fecha - hoy).days / 365.0
+
+        pv = flujo / ((1 + y) ** t)
+
+        pv_total += pv
+        weighted_sum += t * pv
+
+    if pv_total == 0:
+        return None
+
+    duration = weighted_sum / pv_total
+
+    return duration
 
 def _fetch_json(url: str):
     resp = requests.get(url, timeout=10)
@@ -3297,6 +3339,7 @@ with tab_leg:
             df_sob["años_al_vto"] = pd.to_numeric(df_sob["años_al_vto"], errors="coerce").round(2)
             df_sob["tir"] = pd.to_numeric(df_sob["tir"], errors="coerce") * 100
             df_sob["tir"] = df_sob["tir"].round(2)
+            df_sob["duration"] = pd.to_numeric(df_sob["duration"], errors="coerce").round(2)
             df_sob["vencimiento"] = pd.to_datetime(df_sob["vencimiento"]).dt.strftime("%d-%m-%Y")
 
             df_sob = df_sob.rename(columns={
@@ -3306,6 +3349,7 @@ with tab_leg:
                 "vencimiento": "Vencimiento",
                 "años_al_vto": "Años al vto",
                 "tir": "TIR (%)"
+                "duration": "Duration (años)"
 
             })
 
@@ -3313,6 +3357,20 @@ with tab_leg:
                 df_sob,
                 use_container_width=True,
                 hide_index=True
+            )
+
+            st.markdown("### Curva soberana USD")
+
+            df_plot = df_sob.copy()
+
+            # eliminar filas inválidas
+            df_plot = df_plot.dropna(subset=["Duration (años)", "TIR (%)"])
+
+            # ordenar por duration
+            df_plot = df_plot.sort_values("Duration (años)")
+
+            st.line_chart(
+                df_plot.set_index("Duration (años)")["TIR (%)"]
             )
 
             st.markdown("---")

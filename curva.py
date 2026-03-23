@@ -856,10 +856,124 @@ def soberanos_usd_lista():
     df["años_al_vto"] = (df["vencimiento"] - hoy).dt.days / 365.0
     df["precio"] = pd.to_numeric(df["c"], errors="coerce")
 
-    df = df[["bono", "symbol", "precio", "vencimiento", "años_al_vto"]]
+    df["tir"] = df.apply(
+        lambda row: calcular_tir_soberano(row["bono"], row["precio"]),
+        axis=1
+    )
+
+    df = df[["bono", "symbol", "precio", "vencimiento", "años_al_vto", "tir"]]
     df = df.sort_values("vencimiento").reset_index(drop=True)
 
     return df
+
+def tasa_cupon_en_fecha(rules: dict, fecha):
+    if rules.get("tipo") == "step_up":
+        for f_ini, f_fin, tasa in rules.get("coupon_schedule", []):
+            if f_ini <= fecha < f_fin:
+                return tasa
+        return 0.0
+
+    return float(rules.get("coupon", 0.0))
+
+
+def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
+    amort_sched = rules.get("amortization_schedule", [])
+    amort_dict = {fecha: pct for fecha, pct in amort_sched}
+
+    fechas_pago = sorted(amort_dict.keys())
+    outstanding = vn
+    flows = []
+
+    for fecha in fechas_pago:
+        tasa_anual = tasa_cupon_en_fecha(rules, fecha)
+        interes = outstanding * tasa_anual / rules["frequency"]
+
+        amort_pct = amort_dict.get(fecha, 0.0)
+        amort = amort_pct * vn
+
+        flujo = interes + amort
+
+        flows.append({
+            "symbol": symbol,
+            "fecha": pd.Timestamp(fecha),
+            "interes": interes,
+            "amort": amort,
+            "flujo": flujo
+        })
+
+        outstanding -= amort
+
+    df = pd.DataFrame(flows)
+
+    hoy = pd.Timestamp.today().normalize()
+    df = df[df["fecha"] > hoy].copy().reset_index(drop=True)
+
+    return df
+
+
+def xnpv(rate, cashflows):
+    total = 0.0
+    t0 = cashflows[0][0]
+
+    for fecha, flujo in cashflows:
+        dias = (fecha - t0).days
+        total += flujo / ((1 + rate) ** (dias / 365.0))
+
+    return total
+
+
+def xirr(cashflows, guess=0.10):
+    low, high = -0.99, 5.0
+
+    f_low = xnpv(low, cashflows)
+    f_high = xnpv(high, cashflows)
+
+    intentos = 0
+    while f_low * f_high > 0 and intentos < 10:
+        high *= 2
+        f_high = xnpv(high, cashflows)
+        intentos += 1
+
+    if f_low * f_high > 0:
+        return None
+
+    for _ in range(200):
+        mid = (low + high) / 2
+        f_mid = xnpv(mid, cashflows)
+
+        if abs(f_mid) < 1e-8:
+            return mid
+
+        if f_low * f_mid < 0:
+            high = mid
+            f_high = f_mid
+        else:
+            low = mid
+            f_low = f_mid
+
+    return mid
+
+
+def calcular_tir_soberano(symbol: str, precio_limpio: float, vn: float = 100.0):
+    if symbol not in BOND_RULES:
+        return None
+
+    rules = BOND_RULES[symbol]
+    df_flujos = generar_flujos_soberano(symbol, rules, vn=vn)
+
+    if df_flujos.empty:
+        return None
+
+    hoy = pd.Timestamp.today().normalize()
+
+    cashflows = [(hoy, -float(precio_limpio))]
+    cashflows += list(zip(df_flujos["fecha"], df_flujos["flujo"]))
+
+    try:
+        tir = xirr(cashflows)
+        return tir
+    except Exception:
+        return None
 
 from pandas.tseries.offsets import BDay
 
@@ -3136,6 +3250,8 @@ with tab_leg:
         else:
             df_sob["precio"] = pd.to_numeric(df_sob["precio"], errors="coerce").round(2)
             df_sob["años_al_vto"] = pd.to_numeric(df_sob["años_al_vto"], errors="coerce").round(2)
+            df_sob["tir"] = pd.to_numeric(df_sob["tir"], errors="coerce") * 100
+            df_sob["tir"] = df_sob["tir"].round(2)
             df_sob["vencimiento"] = pd.to_datetime(df_sob["vencimiento"]).dt.strftime("%d-%m-%Y")
 
             df_sob = df_sob.rename(columns={
@@ -3143,7 +3259,9 @@ with tab_leg:
                 "symbol": "Ticker",
                 "precio": "Precio",
                 "vencimiento": "Vencimiento",
-                "años_al_vto": "Años al vto"
+                "años_al_vto": "Años al vto",
+                "tir": "TIR (%)"
+
             })
 
             st.dataframe(

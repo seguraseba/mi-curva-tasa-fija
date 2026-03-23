@@ -3287,7 +3287,7 @@ with tab_leg:
 
             bono_sel = st.selectbox(
                 "Seleccionar bono para ver flujos",
-                options=["AL29", "AL30", "AL35", "AL38", "AL41"],
+                options=["AL29", "AL30", "AL35", "AE38", "AL41"],
                 index=1,
                 key="bono_flujos_soberano"
             )

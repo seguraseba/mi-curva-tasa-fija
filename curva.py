@@ -789,6 +789,25 @@ SOBERANOS_API_MAP = {
     "AL41D": "AL41",
 }
 
+def accrued_interest(symbol, rules, fecha_val):
+    freq = rules["frequency"]
+    coupon = rules.get("coupon", 0.0)
+
+    fechas = sorted([f for f, _ in rules["amortization_schedule"]])
+
+    prev_coupon = max([f for f in fechas if f <= fecha_val], default=None)
+    next_coupon = min([f for f in fechas if f > fecha_val], default=None)
+
+    if not prev_coupon or not next_coupon:
+        return 0.0
+
+    dias_total = (next_coupon - prev_coupon).days
+    dias_corridos = (fecha_val - prev_coupon).days
+
+    frac = dias_corridos / dias_total
+
+    return (coupon / freq) * frac * 100
+
 
 def tasa_cupon_en_fecha(rules: dict, fecha):
     if rules.get("tipo") == "step_up":
@@ -966,7 +985,11 @@ def calcular_tir_soberano(symbol: str, precio_limpio: float, vn: float = 100.0):
 
     hoy = pd.Timestamp.today().normalize()
 
-    cashflows = [(hoy, -float(precio_limpio))]
+    accrued = accrued_interest(symbol, rules, hoy)
+    dirty_price = precio_limpio + accrued
+
+    cashflows = [(hoy, -dirty_price)]
+
     cashflows += list(zip(df_flujos["fecha"], df_flujos["flujo"]))
 
     try:

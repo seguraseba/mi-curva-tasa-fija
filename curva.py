@@ -785,7 +785,7 @@ SOBERANOS_API_MAP = {
     "AL29D": "AL29",
     "AL30D": "AL30",
     "AL35D": "AL35",
-    "AE38D": "AL38",
+    "AE38D": "AE38",
     "AL41D": "AL41",
 }
 

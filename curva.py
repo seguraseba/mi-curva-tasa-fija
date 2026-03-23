@@ -3282,57 +3282,52 @@ with tab_leg:
                 hide_index=True
             )
 
-    st.markdown("---")
-    st.subheader("Flujos del bono")
+            st.markdown("---")
+            st.subheader("Flujos del bono")
 
-    bono_sel = st.selectbox(
-        "Seleccionar bono para ver flujos",
-        options=["AL29", "AL30", "AL35", "AL38", "AL41"],
-        index=1,
-        key="bono_flujos_soberano"
-    )
+            bono_sel = st.selectbox(
+                "Seleccionar bono para ver flujos",
+                options=["AL29", "AL30", "AL35", "AL38", "AL41"],
+                index=1,
+                key="bono_flujos_soberano"
+            )
 
-    df_flujos = tabla_flujos_bono(bono_sel, vn=100.0)
+            df_flujos = tabla_flujos_bono(bono_sel, vn=100.0)
 
-    if df_flujos.empty:
-        st.info("No hay flujos futuros para este bono.")
-    else:
-        df_flujos_show = df_flujos.copy()
+            if df_flujos.empty:
+                st.info("No hay flujos futuros para este bono.")
+            else:
+                df_flujos_show = df_flujos.copy()
 
-        df_flujos_show["fecha"] = pd.to_datetime(df_flujos_show["fecha"]).dt.strftime("%d-%m-%Y")
-        df_flujos_show["tasa_anual"] = (pd.to_numeric(df_flujos_show["tasa_anual"], errors="coerce") * 100).round(4)
-        df_flujos_show["outstanding_previo"] = pd.to_numeric(df_flujos_show["outstanding_previo"], errors="coerce").round(4)
-        df_flujos_show["interes"] = pd.to_numeric(df_flujos_show["interes"], errors="coerce").round(6)
-        df_flujos_show["amort_pct"] = (pd.to_numeric(df_flujos_show["amort_pct"], errors="coerce") * 100).round(4)
-        df_flujos_show["amort"] = pd.to_numeric(df_flujos_show["amort"], errors="coerce").round(6)
-        df_flujos_show["flujo"] = pd.to_numeric(df_flujos_show["flujo"], errors="coerce").round(6)
+                df_flujos_show["fecha"] = pd.to_datetime(df_flujos_show["fecha"]).dt.strftime("%d-%m-%Y")
+                df_flujos_show["tasa_anual"] = (pd.to_numeric(df_flujos_show["tasa_anual"], errors="coerce") * 100).round(4)
+                df_flujos_show["outstanding_previo"] = pd.to_numeric(df_flujos_show["outstanding_previo"], errors="coerce").round(4)
+                df_flujos_show["interes"] = pd.to_numeric(df_flujos_show["interes"], errors="coerce").round(6)
+                df_flujos_show["amort_pct"] = (pd.to_numeric(df_flujos_show["amort_pct"], errors="coerce") * 100).round(4)
+                df_flujos_show["amort"] = pd.to_numeric(df_flujos_show["amort"], errors="coerce").round(6)
+                df_flujos_show["flujo"] = pd.to_numeric(df_flujos_show["flujo"], errors="coerce").round(6)
 
-        df_flujos_show = df_flujos_show.rename(columns={
-            "fecha": "Fecha",
-            "outstanding_previo": "VN previo",
-            "tasa_anual": "Tasa anual (%)",
-            "interes": "Interés",
-            "amort_pct": "Amort (%)",
-            "amort": "Amortización",
-            "flujo": "Flujo total"
-        })
+                df_flujos_show = df_flujos_show.rename(columns={
+                    "fecha": "Fecha",
+                    "outstanding_previo": "VN previo",
+                    "tasa_anual": "Tasa anual (%)",
+                    "interes": "Interés",
+                    "amort_pct": "Amort (%)",
+                    "amort": "Amortización",
+                    "flujo": "Flujo total"
+                })
 
-        df_flujos_show = df_flujos_show[
-            ["Fecha", "VN previo", "Tasa anual (%)", "Interés", "Amort (%)", "Amortización", "Flujo total"]
-        ]
+                df_flujos_show = df_flujos_show[
+                    ["Fecha", "VN previo", "Tasa anual (%)", "Interés", "Amort (%)", "Amortización", "Flujo total"]
+                ]
 
-        st.dataframe(
-            df_flujos_show,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        
-
+                st.dataframe(
+                    df_flujos_show,
+                    use_container_width=True,
+                    hide_index=True
+                )
     except Exception as e:
         st.error(f"Error cargando soberanos USD: {e}")
-
-
 
 # =========================
 # TAB 5: CORPORATIVOS

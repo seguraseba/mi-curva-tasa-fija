@@ -817,10 +817,15 @@ def accrued_interest(symbol, rules, fecha_val):
     return (tasa / freq) * frac * 100.0
 
 
-def tasa_cupon_en_fecha(rules: dict, fecha):
+def tasa_cupon_en_fecha(rules: dict, fecha_inicio_periodo):
+    """
+    Devuelve la tasa anual aplicable al período cuyo inicio es fecha_inicio_periodo.
+    Para step-up, la tasa se define por el tramo vigente al inicio del período,
+    no por la fecha de pago.
+    """
     if rules.get("tipo") == "step_up":
         for f_ini, f_fin, tasa in rules.get("coupon_schedule", []):
-            if f_ini <= fecha < f_fin:
+            if f_ini <= fecha_inicio_periodo < f_fin:
                 return tasa
         return 0.0
 
@@ -857,26 +862,33 @@ def soberanos_usd_lista():
 
     return df
 
-def tasa_cupon_en_fecha(rules: dict, fecha):
-    if rules.get("tipo") == "step_up":
-        for f_ini, f_fin, tasa in rules.get("coupon_schedule", []):
-            if f_ini <= fecha < f_fin:
-                return tasa
-        return 0.0
-
-    return float(rules.get("coupon", 0.0))
-
 
 def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
+    """
+    Genera todos los flujos futuros del bono:
+    - incluye cupones sin amortización
+    - usa tasa del inicio del período
+    - calcula interés sobre VN remanente al inicio del período
+    """
     amort_sched = rules.get("amortization_schedule", [])
     amort_dict = {fecha: pct for fecha, pct in amort_sched}
 
-    fechas_pago = sorted(amort_dict.keys())
+    fechas_cupon = generar_fechas_cupon_desde_rules(rules)
+    fechas_pago = sorted(set(fechas_cupon) | set(amort_dict.keys()))
+
+    if not fechas_pago:
+        return pd.DataFrame()
+
     outstanding = vn
     flows = []
 
+    meses = int(12 / rules["frequency"])
+    hoy = pd.Timestamp.today().normalize().date()
+
     for fecha in fechas_pago:
-        tasa_anual = tasa_cupon_en_fecha(rules, fecha)
+        fecha_inicio_periodo = fecha - relativedelta(months=meses)
+
+        tasa_anual = tasa_cupon_en_fecha(rules, fecha_inicio_periodo)
         interes = outstanding * tasa_anual / rules["frequency"]
 
         amort_pct = amort_dict.get(fecha, 0.0)
@@ -887,6 +899,7 @@ def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
         flows.append({
             "symbol": symbol,
             "fecha": pd.Timestamp(fecha),
+            "fecha_inicio_periodo": pd.Timestamp(fecha_inicio_periodo),
             "outstanding_previo": outstanding,
             "tasa_anual": tasa_anual,
             "interes": interes,
@@ -898,11 +911,9 @@ def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
         outstanding -= amort
 
     df = pd.DataFrame(flows)
+    df = df[df["fecha"].dt.date > hoy].copy().reset_index(drop=True)
 
-    hoy = pd.Timestamp.today().normalize()
-    df_futuros = df[df["fecha"] > hoy].copy().reset_index(drop=True)
-
-    return df_futuros
+    return df
 
 def tabla_flujos_bono(symbol: str, vn: float = 100.0):
     if symbol not in BOND_RULES:
@@ -995,6 +1006,28 @@ def _fetch_json(url: str):
     return resp.json()
 
 from dateutil.relativedelta import relativedelta
+
+def generar_fechas_cupon_desde_rules(rules: dict):
+    """
+    Genera todas las fechas de cupón desde first_coupon_date
+    hasta maturity inclusive, con frecuencia semestral.
+    """
+    first_coupon = rules.get("first_coupon_date")
+    maturity = rules.get("maturity")
+    freq = rules.get("frequency", 2)
+
+    if first_coupon is None or maturity is None:
+        return []
+
+    meses = int(12 / freq)
+    fechas = []
+
+    f = first_coupon
+    while f <= maturity:
+        fechas.append(f)
+        f = f + relativedelta(months=meses)
+
+    return fechas
 
 def generar_fechas_pago(fecha_emision: date, fecha_venc: date, freq: int):
     meses = int(12 / freq)
@@ -3307,8 +3340,13 @@ with tab_leg:
                 df_flujos_show["amort"] = pd.to_numeric(df_flujos_show["amort"], errors="coerce").round(6)
                 df_flujos_show["flujo"] = pd.to_numeric(df_flujos_show["flujo"], errors="coerce").round(6)
 
+                df_flujos_show["fecha_inicio_periodo"] = pd.to_datetime(
+                    df_flujos_show["fecha_inicio_periodo"]
+                ).dt.strftime("%d-%m-%Y")
+
                 df_flujos_show = df_flujos_show.rename(columns={
                     "fecha": "Fecha",
+                    "fecha_inicio_periodo": "Inicio período",
                     "outstanding_previo": "VN previo",
                     "tasa_anual": "Tasa anual (%)",
                     "interes": "Interés",
@@ -3318,7 +3356,7 @@ with tab_leg:
                 })
 
                 df_flujos_show = df_flujos_show[
-                    ["Fecha", "VN previo", "Tasa anual (%)", "Interés", "Amort (%)", "Amortización", "Flujo total"]
+                    ["Inicio período", "Fecha", "VN previo", "Tasa anual (%)", "Interés", "Amort (%)", "Amortización", "Flujo total"]
                 ]
 
                 st.dataframe(

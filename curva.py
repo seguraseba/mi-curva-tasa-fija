@@ -2569,7 +2569,7 @@ if "bonos_spread" not in st.session_state:
 # =========================
 
 tab_curvas, tab_leg, tab_corpos, tab_cer_proj, tab_carry, tab_futuros = st.tabs(
-    ["Curvas", "Spread Legislación", "Corporativos", "Proyección CER", "Carry Trade", "Futuros Dólar"]
+    ["Curvas", "Soberanos", "Corporativos", "Proyección CER", "Carry Trade", "Futuros Dólar"]
 )
 # =========================
 # TAB 1: CURVAS (TU APP ACTUAL)

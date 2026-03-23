@@ -3348,7 +3348,7 @@ with tab_leg:
                 "precio": "Precio",
                 "vencimiento": "Vencimiento",
                 "años_al_vto": "Años al vto",
-                "tir": "TIR (%)"
+                "tir": "TIR (%)",
                 "duration": "Duration (años)"
 
             })

@@ -3359,19 +3359,59 @@ with tab_leg:
                 hide_index=True
             )
 
+            
+
             st.markdown("### Curva soberana USD")
 
             df_plot = df_sob.copy()
-
-            # eliminar filas inválidas
-            df_plot = df_plot.dropna(subset=["Duration (años)", "TIR (%)"])
-
-            # ordenar por duration
+            df_plot = df_plot.dropna(subset=["Duration (años)", "TIR (%)"]).copy()
             df_plot = df_plot.sort_values("Duration (años)")
 
-            st.line_chart(
-                df_plot.set_index("Duration (años)")["TIR (%)"]
-            )
+            if len(df_plot) >= 2:
+                x = df_plot["Duration (años)"].astype(float).values
+                y = df_plot["TIR (%)"].astype(float).values
+
+                # Regresión logarítmica: y = a * ln(x) + b
+                mask = x > 0
+                x_reg = x[mask]
+                y_reg = y[mask]
+
+                fig = go.Figure()
+
+                # Scatter de bonos
+                fig.add_trace(go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="markers+text",
+                    text=df_plot["Bono"],
+                    textposition="top center",
+                    name="Bonos"
+                ))
+
+                if len(x_reg) >= 2:
+                    coef = np.polyfit(np.log(x_reg), y_reg, 1)
+                    a, b = coef
+
+                    x_line = np.linspace(x_reg.min(), x_reg.max(), 200)
+                    y_line = a * np.log(x_line) + b
+
+                    fig.add_trace(go.Scatter(
+                        x=x_line,
+                        y=y_line,
+                        mode="lines",
+                        name=f"Regresión log: y = {a:.2f} ln(x) + {b:.2f}"
+                    ))
+
+                fig.update_layout(
+                    xaxis_title="Duration (años)",
+                    yaxis_title="TIR (%)",
+                    template="plotly_white",
+                    height=500
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No hay suficientes bonos con datos para graficar la curva.")
 
             st.markdown("---")
             st.subheader("Flujos del bono")

@@ -1726,8 +1726,8 @@ def inflacion_implicita_par(
 A3_BASE_URL = "https://api.remarkets.primary.com.ar"
 
 # Ideal: guardar user y pass en variables de entorno
-A3_USERNAME = os.getenv("A3_USERNAME", "")
-A3_PASSWORD = os.getenv("A3_PASSWORD", "")
+A3_USERNAME = "seguraseba221314"
+A3_PASSWORD = "igiouC8$"
 
 DLR_CONTRATOS = [
     "DLR/ABR26",

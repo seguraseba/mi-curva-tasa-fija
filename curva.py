@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 from datetime import datetime, date
 import plotly.graph_objects as go
@@ -1719,6 +1720,112 @@ def inflacion_implicita_par(
 
 
 # =========================
+# A3 / PRIMARY - FUTUROS DOLAR
+# =========================
+
+A3_BASE_URL = "https://api.remarkets.primary.com.ar"
+
+# Ideal: guardar user y pass en variables de entorno
+A3_USERNAME = os.getenv("A3_USERNAME", "")
+A3_PASSWORD = os.getenv("A3_PASSWORD", "")
+
+DLR_CONTRATOS = [
+    "DLR/ABR26",
+    "DLR/AGO26",
+    "DLR/ENE27",
+    "DLR/FEB27",
+    "DLR/JUL26",
+    "DLR/JUN26",
+    "DLR/MAR26",
+    "DLR/MAR27",
+    "DLR/MAY26",
+    "DLR/NOV26",
+    "DLR/OCT26",
+]
+
+def a3_get_token():
+    if not A3_USERNAME or not A3_PASSWORD:
+        raise ValueError("Faltan credenciales A3_USERNAME / A3_PASSWORD.")
+
+    url = f"{A3_BASE_URL}/auth/getToken"
+    headers = {
+        "X-Username": A3_USERNAME,
+        "X-Password": A3_PASSWORD,
+    }
+
+    r = requests.post(url, headers=headers, timeout=20)
+    r.raise_for_status()
+
+    token = r.headers.get("X-Auth-Token")
+    if not token:
+        raise ValueError("No se recibió X-Auth-Token.")
+    return token
+
+
+def a3_get_market_data(token: str, symbol: str, market_id: str = "ROFX") -> dict:
+    url = f"{A3_BASE_URL}/rest/marketdata/get"
+    headers = {
+        "X-Auth-Token": token
+    }
+    params = {
+        "marketId": market_id,
+        "symbol": symbol,
+        "entries": "BI,OF,LA,TV",
+        "depth": 1
+    }
+
+    r = requests.get(url, headers=headers, params=params, timeout=30)
+    r.raise_for_status()
+    return r.json()
+
+
+def a3_parse_md(symbol: str, data: dict) -> dict:
+    md = data.get("marketData", {}) or {}
+
+    bi_list = md.get("BI", []) or []
+    of_list = md.get("OF", []) or []
+    la = md.get("LA")
+    tv = md.get("TV", 0)
+
+    bid = bi_list[0].get("price") if bi_list else None
+    ask = of_list[0].get("price") if of_list else None
+    last = la.get("price") if isinstance(la, dict) else None
+
+    return {
+        "Contrato": symbol,
+        "Último": last,
+        "Bid": bid,
+        "Ask": ask,
+        "Volumen": tv
+    }
+
+
+@st.cache_data(ttl=10)
+def cargar_futuros_dolar_snapshot():
+    token = a3_get_token()
+    rows = []
+
+    for symbol in DLR_CONTRATOS:
+        try:
+            data = a3_get_market_data(token, symbol)
+            rows.append(a3_parse_md(symbol, data))
+        except Exception:
+            rows.append({
+                "Contrato": symbol,
+                "Último": None,
+                "Bid": None,
+                "Ask": None,
+                "Volumen": None
+            })
+
+    df = pd.DataFrame(rows)
+
+    for col in ["Último", "Bid", "Ask", "Volumen"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    return df
+
+# =========================
 # MAIN APP (CON PESTAÑAS)
 # =========================
 
@@ -1889,8 +1996,8 @@ if "bonos_spread" not in st.session_state:
 # PESTAÑAS
 # =========================
 
-tab_curvas, tab_leg, tab_corpos, tab_cer_proj, tab_carry = st.tabs(
-    ["Curvas", "Spread Legislación", "Corporativos", "Proyección CER", "Carry Trade"]
+tab_curvas, tab_leg, tab_corpos, tab_cer_proj, tab_carry, tab_futuros = st.tabs(
+    ["Curvas", "Spread Legislación", "Corporativos", "Proyección CER", "Carry Trade", "Futuros Dólar"]
 )
 # =========================
 # TAB 1: CURVAS (TU APP ACTUAL)
@@ -2868,6 +2975,45 @@ with tab_corpos:
             hide_index=True,
             height=min(900, 40 + 35 * len(df_corpos_show))
         )
+
+
+# =========================
+# TAB 6: FUTUROS DOLAR
+# =========================
+with tab_futuros:
+    st.markdown("## Futuros de dólar A3")
+
+    col1, col2 = st.columns([1, 4])
+
+    with col1:
+        if st.button("Refrescar futuros"):
+            cargar_futuros_dolar_snapshot.clear()
+
+    try:
+        df_fut = cargar_futuros_dolar_snapshot().copy()
+
+        for col in ["Último", "Bid", "Ask"]:
+            df_fut[col] = pd.to_numeric(df_fut[col], errors="coerce").round(2)
+
+        df_fut["Volumen"] = pd.to_numeric(df_fut["Volumen"], errors="coerce").fillna(0)
+
+        st.dataframe(
+            df_fut,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        df_validos = df_fut[
+            df_fut["Último"].notna() |
+            df_fut["Bid"].notna() |
+            df_fut["Ask"].notna() |
+            (df_fut["Volumen"] > 0)
+        ].copy()
+
+        st.caption(f"Contratos con algún dato visible: {len(df_validos)} / {len(df_fut)}")
+
+    except Exception as e:
+        st.error(f"Error cargando futuros A3: {e}")
 
 
 #py -m streamlit run curva.py

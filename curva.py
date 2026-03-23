@@ -522,6 +522,345 @@ CER_ESPECIALES_CON_FLUJOS = {"DICP", "PARP", "CUAP", "TX26", "TX28", "TX31"}
 # HELPERS PARA API
 # =========================
 
+from datetime import date
+
+BOND_RULES = {
+
+    # ── A. AL30 – Bono USD Step Up 2030 Ley Argentina ──────────────────────
+    "AL30": {
+        "full_name": "Bonos de la República Argentina en USD Step Up 2030 – Ley Argentina",
+        "currency": "USD",
+        "issue_date": date(2020, 9, 4),
+        "maturity": date(2030, 7, 9),
+        "frequency": 2,                  # semestral
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "step_up",
+        # Tasas step-up: (fecha_desde_inclusive, fecha_hasta_exclusive, tasa_anual)
+        "coupon_schedule": [
+            (date(2020, 9, 4),  date(2021, 7, 9),  0.00125),
+            (date(2021, 7, 9),  date(2023, 7, 9),  0.00500),
+            (date(2023, 7, 9),  date(2027, 7, 9),  0.00750),
+            (date(2027, 7, 9),  date(2030, 7, 9),  0.01750),
+        ],
+        "first_coupon_date": date(2021, 7, 9),
+        "coupon_dates": ("01-09", "07-09"),   # día-mes de cada pago (ene y jul)
+        # Amortización: 13 cuotas semestrales
+        # 1ra cuota (4%) el 09/07/2024, luego 12 cuotas de 8% hasta 09/07/2030
+        "amortization_schedule": (
+            [(date(2024, 7, 9), 0.04)] +
+            [(date(2025, 1, 9), 0.08), (date(2025, 7, 9), 0.08),
+             (date(2026, 1, 9), 0.08), (date(2026, 7, 9), 0.08),
+             (date(2027, 1, 9), 0.08), (date(2027, 7, 9), 0.08),
+             (date(2028, 1, 9), 0.08), (date(2028, 7, 9), 0.08),
+             (date(2029, 1, 9), 0.08), (date(2029, 7, 9), 0.08),
+             (date(2030, 1, 9), 0.08), (date(2030, 7, 9), 0.08)]
+        ),
+    },
+
+    # ── B. AL35 – Bono USD Step Up 2035 Ley Argentina ──────────────────────
+    "AL35": {
+        "full_name": "Bonos de la República Argentina en USD Step Up 2035 – Ley Argentina",
+        "currency": "USD",
+        "issue_date": date(2020, 9, 4),
+        "maturity": date(2035, 7, 9),
+        "frequency": 2,
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "step_up",
+        "coupon_schedule": [
+            (date(2020, 9, 4),  date(2021, 7, 9),  0.00125),
+            (date(2021, 7, 9),  date(2022, 7, 9),  0.01125),
+            (date(2022, 7, 9),  date(2023, 7, 9),  0.01500),
+            (date(2023, 7, 9),  date(2024, 7, 9),  0.03625),
+            (date(2024, 7, 9),  date(2027, 7, 9),  0.04125),
+            (date(2027, 7, 9),  date(2028, 7, 9),  0.04750),
+            (date(2028, 7, 9),  date(2035, 7, 9),  0.05000),
+        ],
+        "first_coupon_date": date(2021, 7, 9),
+        "coupon_dates": ("01-09", "07-09"),
+        # 10 cuotas semestrales iguales (10%) desde 09/01/2031 hasta 09/07/2035
+        "amortization_schedule": [
+            (date(2031, 1, 9), 0.10), (date(2031, 7, 9), 0.10),
+            (date(2032, 1, 9), 0.10), (date(2032, 7, 9), 0.10),
+            (date(2033, 1, 9), 0.10), (date(2033, 7, 9), 0.10),
+            (date(2034, 1, 9), 0.10), (date(2034, 7, 9), 0.10),
+            (date(2035, 1, 9), 0.10), (date(2035, 7, 9), 0.10),
+        ],
+    },
+
+    # ── C. AE38 – Bono USD Step Up 2038 Ley Argentina ──────────────────────
+    "AE38": {
+        "full_name": "Bonos de la República Argentina en USD Step Up 2038 – Ley Argentina",
+        "currency": "USD",
+        "issue_date": date(2020, 9, 4),
+        "maturity": date(2038, 1, 9),
+        "frequency": 2,
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "step_up",
+        "coupon_schedule": [
+            (date(2020, 9, 4),  date(2021, 7, 9),  0.00125),
+            (date(2021, 7, 9),  date(2022, 7, 9),  0.02000),
+            (date(2022, 7, 9),  date(2023, 7, 9),  0.03875),
+            (date(2023, 7, 9),  date(2024, 7, 9),  0.04250),
+            (date(2024, 7, 9),  date(2038, 1, 9),  0.05000),
+        ],
+        "first_coupon_date": date(2021, 7, 9),
+        "coupon_dates": ("01-09", "07-09"),
+        # 22 cuotas semestrales iguales (~4.545%) desde 09/07/2027 hasta 09/01/2038
+        "amortization_schedule": [
+            (date(2027, 7, 9),  round(1/22, 6)),
+            (date(2028, 1, 9),  round(1/22, 6)),
+            (date(2028, 7, 9),  round(1/22, 6)),
+            (date(2029, 1, 9),  round(1/22, 6)),
+            (date(2029, 7, 9),  round(1/22, 6)),
+            (date(2030, 1, 9),  round(1/22, 6)),
+            (date(2030, 7, 9),  round(1/22, 6)),
+            (date(2031, 1, 9),  round(1/22, 6)),
+            (date(2031, 7, 9),  round(1/22, 6)),
+            (date(2032, 1, 9),  round(1/22, 6)),
+            (date(2032, 7, 9),  round(1/22, 6)),
+            (date(2033, 1, 9),  round(1/22, 6)),
+            (date(2033, 7, 9),  round(1/22, 6)),
+            (date(2034, 1, 9),  round(1/22, 6)),
+            (date(2034, 7, 9),  round(1/22, 6)),
+            (date(2035, 1, 9),  round(1/22, 6)),
+            (date(2035, 7, 9),  round(1/22, 6)),
+            (date(2036, 1, 9),  round(1/22, 6)),
+            (date(2036, 7, 9),  round(1/22, 6)),
+            (date(2037, 1, 9),  round(1/22, 6)),
+            (date(2037, 7, 9),  round(1/22, 6)),
+            (date(2038, 1, 9),  round(1/22, 6)),
+        ],
+    },
+
+    # ── D. AL41 – Bono USD Step Up 2041 Ley Argentina ──────────────────────
+    "AL41": {
+        "full_name": "Bonos de la República Argentina en USD Step Up 2041 – Ley Argentina",
+        "currency": "USD",
+        "issue_date": date(2020, 9, 4),
+        "maturity": date(2041, 7, 9),
+        "frequency": 2,
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "step_up",
+        "coupon_schedule": [
+            (date(2020, 9, 4),  date(2021, 7, 9),  0.00125),
+            (date(2021, 7, 9),  date(2022, 7, 9),  0.02500),
+            (date(2022, 7, 9),  date(2029, 7, 9),  0.03500),
+            (date(2029, 7, 9),  date(2041, 7, 9),  0.04875),
+        ],
+        "first_coupon_date": date(2021, 7, 9),
+        "coupon_dates": ("01-09", "07-09"),
+        # 28 cuotas semestrales iguales (~3.571%) desde 09/01/2028 hasta 09/07/2041
+        "amortization_schedule": [
+            (date(2028, 1, 9),  round(1/28, 6)),
+            (date(2028, 7, 9),  round(1/28, 6)),
+            (date(2029, 1, 9),  round(1/28, 6)),
+            (date(2029, 7, 9),  round(1/28, 6)),
+            (date(2030, 1, 9),  round(1/28, 6)),
+            (date(2030, 7, 9),  round(1/28, 6)),
+            (date(2031, 1, 9),  round(1/28, 6)),
+            (date(2031, 7, 9),  round(1/28, 6)),
+            (date(2032, 1, 9),  round(1/28, 6)),
+            (date(2032, 7, 9),  round(1/28, 6)),
+            (date(2033, 1, 9),  round(1/28, 6)),
+            (date(2033, 7, 9),  round(1/28, 6)),
+            (date(2034, 1, 9),  round(1/28, 6)),
+            (date(2034, 7, 9),  round(1/28, 6)),
+            (date(2035, 1, 9),  round(1/28, 6)),
+            (date(2035, 7, 9),  round(1/28, 6)),
+            (date(2036, 1, 9),  round(1/28, 6)),
+            (date(2036, 7, 9),  round(1/28, 6)),
+            (date(2037, 1, 9),  round(1/28, 6)),
+            (date(2037, 7, 9),  round(1/28, 6)),
+            (date(2038, 1, 9),  round(1/28, 6)),
+            (date(2038, 7, 9),  round(1/28, 6)),
+            (date(2039, 1, 9),  round(1/28, 6)),
+            (date(2039, 7, 9),  round(1/28, 6)),
+            (date(2040, 1, 9),  round(1/28, 6)),
+            (date(2040, 7, 9),  round(1/28, 6)),
+            (date(2041, 1, 9),  round(1/28, 6)),
+            (date(2041, 7, 9),  round(1/28, 6)),
+        ],
+    },
+
+    # ── E. TX26 – BONCER 2026 2.00% ────────────────────────────────────────
+    "TX26": {
+        "full_name": "Bonos del Tesoro Nacional en Pesos con Ajuste por CER 2,00% Vto. 2026",
+        "currency": "ARS",
+        "issue_date": date(2020, 9, 4),
+        "maturity": date(2026, 11, 9),
+        "frequency": 2,
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "CER",
+        "coupon": 0.02,                  # tasa fija real sobre capital ajustado CER
+        "cer_adjusted": True,
+        # CER: t-10 hábiles desde emisión hasta t-10 hábiles antes de cada vencimiento
+        "cer_lag_business_days": 10,
+        "first_coupon_date": date(2021, 5, 9),
+        "coupon_dates": ("05-09", "11-09"),   # mayo y noviembre
+        # 5 cuotas semestrales iguales (20%) desde 09/11/2024 hasta 09/11/2026
+        "amortization_schedule": [
+            (date(2024, 11, 9), 0.20),
+            (date(2025, 5,  9), 0.20),
+            (date(2025, 11, 9), 0.20),
+            (date(2026, 5,  9), 0.20),
+            (date(2026, 11, 9), 0.20),
+        ],
+    },
+
+    # ── F. TX28 – BONCER 2028 2.25% ────────────────────────────────────────
+    "TX28": {
+        "full_name": "Bonos del Tesoro Nacional en Pesos con Ajuste por CER 2,25% Vto. 2028",
+        "currency": "ARS",
+        "issue_date": date(2020, 9, 4),
+        "maturity": date(2028, 11, 9),
+        "frequency": 2,
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "CER",
+        "coupon": 0.0225,
+        "cer_adjusted": True,
+        "cer_lag_business_days": 10,
+        "first_coupon_date": date(2021, 5, 9),
+        "coupon_dates": ("05-09", "11-09"),
+        # 10 cuotas semestrales iguales (10%) desde 09/05/2024 hasta 09/11/2028
+        "amortization_schedule": [
+            (date(2024, 5,  9), 0.10),
+            (date(2024, 11, 9), 0.10),
+            (date(2025, 5,  9), 0.10),
+            (date(2025, 11, 9), 0.10),
+            (date(2026, 5,  9), 0.10),
+            (date(2026, 11, 9), 0.10),
+            (date(2027, 5,  9), 0.10),
+            (date(2027, 11, 9), 0.10),
+            (date(2028, 5,  9), 0.10),
+            (date(2028, 11, 9), 0.10),
+        ],
+    },
+
+    # ── G. AL29 – Bono USD 1% 2029 Ley Argentina ───────────────────────────
+    "AL29": {
+        "full_name": "Bonos de la República Argentina en USD al 1% 2029 – Ley Argentina",
+        "currency": "USD",
+        "issue_date": date(2020, 9, 4),
+        "maturity": date(2029, 7, 9),
+        "frequency": 2,
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "tasa_fija",
+        "coupon": 0.01,                  # tasa flat, sin step-up
+        "coupon_schedule": [
+            (date(2020, 9, 4), date(2029, 7, 9), 0.01),
+        ],
+        "first_coupon_date": date(2021, 7, 9),
+        "coupon_dates": ("01-09", "07-09"),
+        # 10 cuotas semestrales iguales (10%) desde 09/01/2025 hasta 09/07/2029
+        "amortization_schedule": [
+            (date(2025, 1, 9), 0.10),
+            (date(2025, 7, 9), 0.10),
+            (date(2026, 1, 9), 0.10),
+            (date(2026, 7, 9), 0.10),
+            (date(2027, 1, 9), 0.10),
+            (date(2027, 7, 9), 0.10),
+            (date(2028, 1, 9), 0.10),
+            (date(2028, 7, 9), 0.10),
+            (date(2029, 1, 9), 0.10),
+            (date(2029, 7, 9), 0.10),
+        ],
+    },
+}
+
+SOBERANOS_API_MAP = {
+    "AL29D": "AL29",
+    "AL30D": "AL30",
+    "AL35D": "AL35",
+    "AE38D": "AL38",
+    "AL41D": "AL41",
+}
+
+
+def tasa_cupon_en_fecha(rules: dict, fecha):
+    if rules.get("tipo") == "step_up":
+        for f_ini, f_fin, tasa in rules.get("coupon_schedule", []):
+            if f_ini <= fecha < f_fin:
+                return tasa
+        return 0.0
+
+    return float(rules.get("coupon", 0.0))
+
+
+def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
+    """
+    Genera flujos futuros simples:
+    flujo = interés del período + amortización
+    sobre VN 100.
+    """
+    amort_sched = rules.get("amortization_schedule", [])
+    amort_dict = {fecha: pct for fecha, pct in amort_sched}
+
+    fechas_pago = sorted(amort_dict.keys())
+    outstanding = vn
+    flows = []
+
+    for fecha in fechas_pago:
+        tasa_anual = tasa_cupon_en_fecha(rules, fecha)
+        interes = outstanding * tasa_anual / rules["frequency"]
+
+        amort_pct = amort_dict.get(fecha, 0.0)
+        amort = amort_pct * vn
+
+        flujo = interes + amort
+
+        flows.append({
+            "symbol": symbol,
+            "fecha": fecha,
+            "interes": interes,
+            "amort": amort,
+            "flujo": flujo,
+            "outstanding_previo": outstanding
+        })
+
+        outstanding -= amort
+
+    return pd.DataFrame(flows)
+
+@st.cache_data(ttl=30)
+def soberanos_usd_lista():
+    df = pd.read_json(URL_BONOS)
+
+    if df.empty:
+        return pd.DataFrame()
+
+    df["symbol"] = df["symbol"].astype(str).str.upper().str.strip()
+    df = df[df["symbol"].isin(SOBERANOS_API_MAP.keys())].copy()
+
+    if df.empty:
+        return pd.DataFrame()
+
+    df["bono"] = df["symbol"].map(SOBERANOS_API_MAP)
+    df["vencimiento"] = df["bono"].map(lambda b: BOND_RULES[b]["maturity"])
+    df["vencimiento"] = pd.to_datetime(df["vencimiento"])
+
+    hoy = pd.Timestamp.today().normalize()
+    df["años_al_vto"] = (df["vencimiento"] - hoy).dt.days / 365.0
+    df["precio"] = pd.to_numeric(df["c"], errors="coerce")
+
+    df = df[["bono", "symbol", "precio", "vencimiento", "años_al_vto"]]
+    df = df.sort_values("vencimiento").reset_index(drop=True)
+
+    return df
+
 from pandas.tseries.offsets import BDay
 
 def _fetch_json(url: str):
@@ -2782,6 +3121,41 @@ with tab_leg:
             hide_index=True,
             height=min(500, 40 + 35 * len(df_show))
         )
+
+    st.markdown("---")
+    st.subheader("Soberanos USD")
+
+    if st.button("Refrescar soberanos USD", key="refresh_soberanos_leg"):
+        soberanos_usd_lista.clear()
+
+    try:
+        df_sob = soberanos_usd_lista().copy()
+
+        if df_sob.empty:
+            st.info("No se encontraron soberanos USD en la API de bonos.")
+        else:
+            df_sob["precio"] = pd.to_numeric(df_sob["precio"], errors="coerce").round(2)
+            df_sob["años_al_vto"] = pd.to_numeric(df_sob["años_al_vto"], errors="coerce").round(2)
+            df_sob["vencimiento"] = pd.to_datetime(df_sob["vencimiento"]).dt.strftime("%d-%m-%Y")
+
+            df_sob = df_sob.rename(columns={
+                "bono": "Bono",
+                "symbol": "Ticker",
+                "precio": "Precio",
+                "vencimiento": "Vencimiento",
+                "años_al_vto": "Años al vto"
+            })
+
+            st.dataframe(
+                df_sob,
+                use_container_width=True,
+                hide_index=True
+            )
+
+    except Exception as e:
+        st.error(f"Error cargando soberanos USD: {e}")
+
+
 
 # =========================
 # TAB 5: CORPORATIVOS

@@ -1777,6 +1777,10 @@ def a3_get_market_data(token: str, symbol: str, market_id: str = "ROFX") -> dict
     r.raise_for_status()
     return r.json()
 
+def cargar_dlr_spot(token: str) -> dict:
+    data = a3_get_market_data(token, "DLR/SPOT")
+    row = a3_parse_md("DLR/SPOT", data)
+    return row
 
 def a3_parse_md(symbol: str, data: dict) -> dict:
     md = data.get("marketData", {}) or {}
@@ -1854,6 +1858,20 @@ def dias_habiles_al_vto(vto):
 @st.cache_data(ttl=10)
 def cargar_futuros_dolar_snapshot():
     token = a3_get_token()
+
+    # Spot
+    try:
+        spot_row = cargar_dlr_spot(token)
+    except Exception:
+        spot_row = {
+            "Contrato": "DLR/SPOT",
+            "Último": None,
+            "Bid": None,
+            "Ask": None,
+            "Volumen": None
+        }
+
+    # Futuros
     rows = []
 
     for symbol in DLR_CONTRATOS:
@@ -1874,15 +1892,12 @@ def cargar_futuros_dolar_snapshot():
     for col in ["Último", "Bid", "Ask", "Volumen"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # NUEVO: vencimiento y días al vencimiento
     df["Vto"] = df["Contrato"].apply(parsear_vencimiento_dlr)
     df["Días al vto"] = df["Vto"].apply(dias_habiles_al_vto)
 
-    # NUEVO: ordenar por cercanía al vencimiento
     df = df.sort_values(by=["Días al vto", "Contrato"], na_position="last").reset_index(drop=True)
 
-    return df
-
+    return spot_row, df
 
 # =========================
 # MAIN APP (CON PESTAÑAS)
@@ -3049,23 +3064,33 @@ with tab_futuros:
             cargar_futuros_dolar_snapshot.clear()
 
     try:
-        df_fut = cargar_futuros_dolar_snapshot().copy()
+        spot_row, df_fut = cargar_futuros_dolar_snapshot()
 
+        # ===== SPOT =====
+        st.markdown("### Dólar Spot")
+
+        spot_ultimo = pd.to_numeric(spot_row.get("Último"), errors="coerce")
+
+        st.metric(
+            "Último",
+            f"{spot_ultimo:.2f}" if pd.notnull(spot_ultimo) else "-"
+        )
+
+        st.markdown("---")
+
+        # ===== FUTUROS =====
         for col in ["Último", "Bid", "Ask"]:
             df_fut[col] = pd.to_numeric(df_fut[col], errors="coerce").round(2)
 
         df_fut["Volumen"] = pd.to_numeric(df_fut["Volumen"], errors="coerce").fillna(0)
         df_fut["Días al vto"] = pd.to_numeric(df_fut["Días al vto"], errors="coerce")
 
-        # Formato visual de la fecha
         df_fut["Vto"] = df_fut["Vto"].apply(
             lambda x: x.strftime("%d-%m-%Y") if pd.notnull(x) else "-"
         )
 
-        # Orden de columnas
         df_fut = df_fut[["Contrato", "Vto", "Días al vto", "Último", "Bid", "Ask", "Volumen"]]
 
-        # Mostrar NaN como guión
         df_show = df_fut.fillna("-")
 
         st.caption("Ordenado por días hábiles al vencimiento (último día hábil de cada mes).")

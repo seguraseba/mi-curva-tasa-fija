@@ -3064,8 +3064,7 @@ with tab_futuros:
             cargar_futuros_dolar_snapshot.clear()
 
     try:
-        with st.spinner("Cargando futuros..."):
-            spot_row, df_fut = cargar_futuros_dolar_snapshot()
+        spot_row, df_fut = cargar_futuros_dolar_snapshot()
 
         # ===== SPOT =====
         st.markdown("### Dólar Spot")

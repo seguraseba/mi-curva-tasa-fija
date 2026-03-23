@@ -826,42 +826,6 @@ def tasa_cupon_en_fecha(rules: dict, fecha):
 
     return float(rules.get("coupon", 0.0))
 
-
-def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
-    """
-    Genera flujos futuros simples:
-    flujo = interés del período + amortización
-    sobre VN 100.
-    """
-    amort_sched = rules.get("amortization_schedule", [])
-    amort_dict = {fecha: pct for fecha, pct in amort_sched}
-
-    fechas_pago = sorted(amort_dict.keys())
-    outstanding = vn
-    flows = []
-
-    for fecha in fechas_pago:
-        tasa_anual = tasa_cupon_en_fecha(rules, fecha)
-        interes = outstanding * tasa_anual / rules["frequency"]
-
-        amort_pct = amort_dict.get(fecha, 0.0)
-        amort = amort_pct * vn
-
-        flujo = interes + amort
-
-        flows.append({
-            "symbol": symbol,
-            "fecha": fecha,
-            "interes": interes,
-            "amort": amort,
-            "flujo": flujo,
-            "outstanding_previo": outstanding
-        })
-
-        outstanding -= amort
-
-    return pd.DataFrame(flows)
-
 @st.cache_data(ttl=30)
 def soberanos_usd_lista():
     df = pd.read_json(URL_BONOS)
@@ -923,7 +887,10 @@ def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
         flows.append({
             "symbol": symbol,
             "fecha": pd.Timestamp(fecha),
+            "outstanding_previo": outstanding,
+            "tasa_anual": tasa_anual,
             "interes": interes,
+            "amort_pct": amort_pct,
             "amort": amort,
             "flujo": flujo
         })
@@ -933,10 +900,23 @@ def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
     df = pd.DataFrame(flows)
 
     hoy = pd.Timestamp.today().normalize()
-    df = df[df["fecha"] > hoy].copy().reset_index(drop=True)
+    df_futuros = df[df["fecha"] > hoy].copy().reset_index(drop=True)
 
+    return df_futuros
+
+def tabla_flujos_bono(symbol: str, vn: float = 100.0):
+    if symbol not in BOND_RULES:
+        return pd.DataFrame()
+
+    rules = BOND_RULES[symbol]
+    df = generar_flujos_soberano(symbol, rules, vn=vn)
+
+    if df.empty:
+        return df
+
+    df = df.copy()
+    df["fecha"] = pd.to_datetime(df["fecha"])
     return df
-
 
 def xnpv(rate, cashflows):
     total = 0.0
@@ -3301,6 +3281,53 @@ with tab_leg:
                 use_container_width=True,
                 hide_index=True
             )
+
+    st.markdown("---")
+    st.subheader("Flujos del bono")
+
+    bono_sel = st.selectbox(
+        "Seleccionar bono para ver flujos",
+        options=["AL29", "AL30", "AL35", "AL38", "AL41"],
+        index=1,
+        key="bono_flujos_soberano"
+    )
+
+    df_flujos = tabla_flujos_bono(bono_sel, vn=100.0)
+
+    if df_flujos.empty:
+        st.info("No hay flujos futuros para este bono.")
+    else:
+        df_flujos_show = df_flujos.copy()
+
+        df_flujos_show["fecha"] = pd.to_datetime(df_flujos_show["fecha"]).dt.strftime("%d-%m-%Y")
+        df_flujos_show["tasa_anual"] = (pd.to_numeric(df_flujos_show["tasa_anual"], errors="coerce") * 100).round(4)
+        df_flujos_show["outstanding_previo"] = pd.to_numeric(df_flujos_show["outstanding_previo"], errors="coerce").round(4)
+        df_flujos_show["interes"] = pd.to_numeric(df_flujos_show["interes"], errors="coerce").round(6)
+        df_flujos_show["amort_pct"] = (pd.to_numeric(df_flujos_show["amort_pct"], errors="coerce") * 100).round(4)
+        df_flujos_show["amort"] = pd.to_numeric(df_flujos_show["amort"], errors="coerce").round(6)
+        df_flujos_show["flujo"] = pd.to_numeric(df_flujos_show["flujo"], errors="coerce").round(6)
+
+        df_flujos_show = df_flujos_show.rename(columns={
+            "fecha": "Fecha",
+            "outstanding_previo": "VN previo",
+            "tasa_anual": "Tasa anual (%)",
+            "interes": "Interés",
+            "amort_pct": "Amort (%)",
+            "amort": "Amortización",
+            "flujo": "Flujo total"
+        })
+
+        df_flujos_show = df_flujos_show[
+            ["Fecha", "VN previo", "Tasa anual (%)", "Interés", "Amort (%)", "Amortización", "Flujo total"]
+        ]
+
+        st.dataframe(
+            df_flujos_show,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        
 
     except Exception as e:
         st.error(f"Error cargando soberanos USD: {e}")

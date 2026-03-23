@@ -4,12 +4,11 @@ import pandas as pd
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from datetime import datetime, date
+from datetime import datetime, date, Timedelta
 import plotly.graph_objects as go
 from pandas.tseries.offsets import CustomBusinessDay
 from pathlib import Path
-
-
+import calendar
 
 
 # =========================
@@ -1800,6 +1799,58 @@ def a3_parse_md(symbol: str, data: dict) -> dict:
     }
 
 
+MESES_MAP = {
+    "ENE": 1,
+    "FEB": 2,
+    "MAR": 3,
+    "ABR": 4,
+    "MAY": 5,
+    "JUN": 6,
+    "JUL": 7,
+    "AGO": 8,
+    "SEP": 9,
+    "OCT": 10,
+    "NOV": 11,
+    "DIC": 12,
+}
+
+def ultimo_dia_habil_mes(anio: int, mes: int) -> date:
+    ultimo_dia = calendar.monthrange(anio, mes)[1]
+    f = pd.Timestamp(year=anio, month=mes, day=ultimo_dia)
+
+    while f.weekday() >= 5 or f in feriados_arg:
+        f -= pd.Timedelta(days=1)
+
+    return f.date()
+
+def parsear_vencimiento_dlr(symbol: str):
+    """
+    Ej: DLR/ABR26 -> último día hábil de abril 2026
+    """
+    try:
+        base = symbol.replace("DLR/", "")
+        mes_txt = base[:3]
+        anio_txt = base[3:]
+
+        mes = MESES_MAP[mes_txt]
+        anio = 2000 + int(anio_txt)
+
+        return ultimo_dia_habil_mes(anio, mes)
+    except Exception:
+        return None
+
+def dias_habiles_al_vto(vto):
+    if vto is None:
+        return None
+
+    hoy = pd.Timestamp.today().normalize()
+    vto_ts = pd.Timestamp(vto)
+
+    if vto_ts <= hoy:
+        return 0
+
+    return len(pd.date_range(start=hoy + ARG_BDAY, end=vto_ts, freq=ARG_BDAY))
+
 @st.cache_data(ttl=10)
 def cargar_futuros_dolar_snapshot():
     token = a3_get_token()
@@ -1823,7 +1874,15 @@ def cargar_futuros_dolar_snapshot():
     for col in ["Último", "Bid", "Ask", "Volumen"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
+    # NUEVO: vencimiento y días al vencimiento
+    df["Vto"] = df["Contrato"].apply(parsear_vencimiento_dlr)
+    df["Días al vto"] = df["Vto"].apply(dias_habiles_al_vto)
+
+    # NUEVO: ordenar por cercanía al vencimiento
+    df = df.sort_values(by=["Días al vto", "Contrato"], na_position="last").reset_index(drop=True)
+
     return df
+
 
 # =========================
 # MAIN APP (CON PESTAÑAS)
@@ -2996,17 +3055,31 @@ with tab_futuros:
             df_fut[col] = pd.to_numeric(df_fut[col], errors="coerce").round(2)
 
         df_fut["Volumen"] = pd.to_numeric(df_fut["Volumen"], errors="coerce").fillna(0)
+        df_fut["Días al vto"] = pd.to_numeric(df_fut["Días al vto"], errors="coerce")
+
+        # Formato visual de la fecha
+        df_fut["Vto"] = df_fut["Vto"].apply(
+            lambda x: x.strftime("%d-%m-%Y") if pd.notnull(x) else "-"
+        )
+
+        # Orden de columnas
+        df_fut = df_fut[["Contrato", "Vto", "Días al vto", "Último", "Bid", "Ask", "Volumen"]]
+
+        # Mostrar NaN como guión
+        df_show = df_fut.fillna("-")
+
+        st.caption("Ordenado por días hábiles al vencimiento (último día hábil de cada mes).")
 
         st.dataframe(
-            df_fut,
+            df_show,
             use_container_width=True,
             hide_index=True
         )
 
         df_validos = df_fut[
-            df_fut["Último"].notna() |
-            df_fut["Bid"].notna() |
-            df_fut["Ask"].notna() |
+            (df_fut["Último"].notna()) |
+            (df_fut["Bid"].notna()) |
+            (df_fut["Ask"].notna()) |
             (df_fut["Volumen"] > 0)
         ].copy()
 
@@ -3014,7 +3087,6 @@ with tab_futuros:
 
     except Exception as e:
         st.error(f"Error cargando futuros A3: {e}")
-
 
 #py -m streamlit run curva.py
 #cd "C:\Users\ssegura\OneDrive - BALANZ\Escritorio\curvas"

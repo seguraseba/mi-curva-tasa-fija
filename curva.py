@@ -786,13 +786,38 @@ BOND_RULES = {
     },
 }
 
+
 SOBERANOS_API_MAP = {
+    # Bonares
     "AL29D": "AL29",
     "AL30D": "AL30",
     "AL35D": "AL35",
     "AE38D": "AE38",
     "AL41D": "AL41",
+
+    # Globales
+    "GD29D": "GD29",
+    "GD30D": "GD30",
+    "GD35D": "GD35",
+    "GD38D": "GD38",
+    "GD41D": "GD41",
 }
+
+GLOBAL_RULE_ALIAS = {
+    "GD29": "AL29",
+    "GD30": "AL30",
+    "GD35": "AL35",
+    "GD38": "AE38",
+    "GD41": "AL41",
+}
+
+def bono_base_flujos(symbol: str) -> str:
+    """
+    Devuelve el bono base cuyas reglas de flujo se usan.
+    GDxx usa el mismo flujo que su equivalente AL/AE.
+    """
+    s = str(symbol).strip().upper()
+    return GLOBAL_RULE_ALIAS.get(s, s)
 
 def accrued_interest(symbol, rules, fecha_val):
     freq = rules["frequency"]
@@ -836,6 +861,7 @@ def tasa_cupon_en_fecha(rules: dict, fecha_inicio_periodo):
 
     return float(rules.get("coupon", 0.0))
 
+
 @st.cache_data(ttl=30)
 def soberanos_usd_lista():
     df = pd.read_json(URL_BONOS)
@@ -849,28 +875,50 @@ def soberanos_usd_lista():
     if df.empty:
         return pd.DataFrame()
 
+    # bono mostrado en tabla
     df["bono"] = df["symbol"].map(SOBERANOS_API_MAP)
-    df["vencimiento"] = df["bono"].map(lambda b: BOND_RULES[b]["maturity"])
+
+    # bono base para flujos / duration / tir
+    df["bono_modelo"] = df["bono"].apply(bono_base_flujos)
+
+    # ley
+    df["legislacion"] = np.where(df["bono"].str.startswith("GD"), "NY", "ARG")
+
+    # vencimiento desde el bono base
+    df["vencimiento"] = df["bono_modelo"].map(lambda b: BOND_RULES[b]["maturity"])
     df["vencimiento"] = pd.to_datetime(df["vencimiento"])
 
     hoy = pd.Timestamp.today().normalize()
     df["años_al_vto"] = (df["vencimiento"] - hoy).dt.days / 365.0
+
+    # precio de mercado
     df["precio"] = pd.to_numeric(df["c"], errors="coerce")
 
+    # TIR usando el bono base de flujos, pero el precio del ticker real
     df["tir"] = df.apply(
         lambda row: calcular_tir_soberano(row["bono"], row["precio"]),
         axis=1
     )
 
+    # Duration usando el bono base de flujos
     df["duration"] = df.apply(
         lambda row: macaulay_duration(row["bono"], row["precio"], row["tir"]),
         axis=1
-    )   
+    )
 
+    df = df[[
+        "bono",
+        "symbol",
+        "legislacion",
+        "bono_modelo",
+        "precio",
+        "vencimiento",
+        "años_al_vto",
+        "tir",
+        "duration"
+    ]]
 
-    df = df[["bono", "symbol", "precio", "vencimiento", "años_al_vto", "tir", "duration"]]
-    df = df.sort_values("vencimiento").reset_index(drop=True)
-
+    df = df.sort_values(["vencimiento", "bono"]).reset_index(drop=True)
     return df
 
 
@@ -927,17 +975,21 @@ def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
     return df
 
 def tabla_flujos_bono(symbol: str, vn: float = 100.0):
-    if symbol not in BOND_RULES:
+    symbol_base = bono_base_flujos(symbol)
+
+    if symbol_base not in BOND_RULES:
         return pd.DataFrame()
 
-    rules = BOND_RULES[symbol]
-    df = generar_flujos_soberano(symbol, rules, vn=vn)
+    rules = BOND_RULES[symbol_base]
+    df = generar_flujos_soberano(symbol_base, rules, vn=vn)
 
     if df.empty:
         return df
 
     df = df.copy()
     df["fecha"] = pd.to_datetime(df["fecha"])
+    df["bono_consultado"] = symbol
+    df["bono_modelo"] = symbol_base
     return df
 
 def xnpv(rate, cashflows):
@@ -982,25 +1034,28 @@ def xirr(cashflows, guess=0.10):
 
     return mid
 
-
 def calcular_tir_soberano(symbol: str, precio_limpio: float, vn: float = 100.0):
-    if symbol not in BOND_RULES:
+    if precio_limpio is None or pd.isna(precio_limpio):
         return None
 
-    rules = BOND_RULES[symbol]
-    df_flujos = generar_flujos_soberano(symbol, rules, vn=vn)
+    symbol_base = bono_base_flujos(symbol)
+
+    if symbol_base not in BOND_RULES:
+        return None
+
+    rules = BOND_RULES[symbol_base]
+    df_flujos = generar_flujos_soberano(symbol_base, rules, vn=vn)
 
     if df_flujos.empty:
         return None
 
     hoy = pd.Timestamp.today().normalize()
     hoy_date = hoy.date()
-    
-    accrued = accrued_interest(symbol, rules, hoy_date)
-    dirty_price = precio_limpio + accrued
+
+    accrued = accrued_interest(symbol_base, rules, hoy_date)
+    dirty_price = float(precio_limpio) + accrued
 
     cashflows = [(hoy, -dirty_price)]
-
     cashflows += list(zip(df_flujos["fecha"], df_flujos["flujo"]))
 
     try:
@@ -1011,19 +1066,23 @@ def calcular_tir_soberano(symbol: str, precio_limpio: float, vn: float = 100.0):
 
 from pandas.tseries.offsets import BDay
 
+
 def macaulay_duration(symbol: str, precio_limpio: float, tir: float, vn: float = 100.0):
-    if symbol not in BOND_RULES or tir is None:
+    if tir is None or precio_limpio is None or pd.isna(precio_limpio):
         return None
 
-    rules = BOND_RULES[symbol]
-    df = generar_flujos_soberano(symbol, rules, vn=vn)
+    symbol_base = bono_base_flujos(symbol)
+
+    if symbol_base not in BOND_RULES:
+        return None
+
+    rules = BOND_RULES[symbol_base]
+    df = generar_flujos_soberano(symbol_base, rules, vn=vn)
 
     if df.empty:
         return None
 
     hoy = pd.Timestamp.today().normalize()
-
-    # convertir tir a decimal
     y = float(tir)
 
     pv_total = 0.0
@@ -1034,7 +1093,6 @@ def macaulay_duration(symbol: str, precio_limpio: float, tir: float, vn: float =
         flujo = row["flujo"]
 
         t = (fecha - hoy).days / 365.0
-
         pv = flujo / ((1 + y) ** t)
 
         pv_total += pv
@@ -1043,9 +1101,7 @@ def macaulay_duration(symbol: str, precio_limpio: float, tir: float, vn: float =
     if pv_total == 0:
         return None
 
-    duration = weighted_sum / pv_total
-
-    return duration
+    return weighted_sum / pv_total
 
 def _fetch_json(url: str):
     resp = requests.get(url, timeout=10)
@@ -3349,12 +3405,26 @@ with tab_leg:
             df_sob = df_sob.rename(columns={
                 "bono": "Bono",
                 "symbol": "Ticker",
+                "legislacion": "Ley",
+                "bono_modelo": "Modelo flujo",
                 "precio": "Precio",
                 "vencimiento": "Vencimiento",
                 "años_al_vto": "Años al vto",
                 "tir": "TIR (%)",
                 "duration": "Duration (años)"
             })
+
+            df_sob = df_sob[[
+                "Bono",
+                "Ticker",
+                "Ley",
+                "Modelo flujo",
+                "Precio",
+                "Vencimiento",
+                "Años al vto",
+                "TIR (%)",
+                "Duration (años)"
+            ]]
 
             col_tabla, col_graf = st.columns([1.2, 1])
 
@@ -3424,7 +3494,7 @@ with tab_leg:
 
             bono_sel = st.selectbox(
                 "Seleccionar bono para ver flujos",
-                options=["AL29", "AL30", "AL35", "AE38", "AL41"],
+                options=["AL29", "AL30", "AL35", "AE38", "AL41", "GD29", "GD30", "GD35", "GD38", "GD41"],
                 index=1,
                 key="bono_flujos_soberano"
             )

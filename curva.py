@@ -3436,58 +3436,116 @@ with tab_leg:
                 )
 
             with col_graf:
-                st.markdown("### Curva BONARES USD")
+                st.markdown("### Curvas soberanas USD")
 
                 df_plot = df_sob.copy()
-                df_plot = df_plot.dropna(subset=["Duration (años)", "TIR (%)"]).copy()
-                df_plot = df_plot.sort_values("Duration (años)")
+                df_plot = df_plot.dropna(subset=["Duration (años)", "TIR (%)", "Ley"]).copy()
 
-                if len(df_plot) >= 2:
-                    x = df_plot["Duration (años)"].astype(float).values
-                    y = df_plot["TIR (%)"].astype(float).values
+                df_arg = df_plot[df_plot["Ley"] == "ARG"].copy().sort_values("Duration (años)")
+                df_ny  = df_plot[df_plot["Ley"] == "NY"].copy().sort_values("Duration (años)")
 
-                    fig = go.Figure()
+                subcol1, subcol2 = st.columns(2)
 
-                    fig.add_trace(go.Scatter(
-                        x=x,
-                        y=y,
-                        mode="markers+text",
-                        text=df_plot["Bono"],
-                        textposition="top center",
-                        name="Bonos"
-                    ))
+                with subcol1:
+                    st.markdown("#### Bonares (Ley ARG)")
 
-                    mask = x > 0
-                    x_reg = x[mask]
-                    y_reg = y[mask]
+                    if len(df_arg) >= 2:
+                        x = df_arg["Duration (años)"].astype(float).values
+                        y = df_arg["TIR (%)"].astype(float).values
 
-                    if len(x_reg) >= 2:
-                        coef = np.polyfit(np.log(x_reg), y_reg, 1)
-                        a, b = coef
+                        fig_arg = go.Figure()
 
-                        x_line = np.linspace(x_reg.min(), x_reg.max(), 200)
-                        y_line = a * np.log(x_line) + b
-
-                        fig.add_trace(go.Scatter(
-                            x=x_line,
-                            y=y_line,
-                            mode="lines",
-                            name="Regresión log",
-                            line=dict(dash="dash")
+                        fig_arg.add_trace(go.Scatter(
+                            x=x,
+                            y=y,
+                            mode="markers+text",
+                            text=df_arg["Bono"],
+                            textposition="top center",
+                            name="Bonares"
                         ))
 
-                    fig.update_layout(
-                        xaxis_title="Duration (años)",
-                        yaxis_title="TIR (%)",
-                        template="plotly_white",
-                        height=450,
-                        margin=dict(l=10, r=10, t=40, b=10)
-                    )
+                        mask = x > 0
+                        x_reg = x[mask]
+                        y_reg = y[mask]
 
-                    st.plotly_chart(fig, use_container_width=True)
+                        if len(x_reg) >= 2:
+                            coef = np.polyfit(np.log(x_reg), y_reg, 1)
+                            a, b = coef
 
-                else:
-                    st.info("No hay suficientes bonos con datos para graficar.")
+                            x_line = np.linspace(x_reg.min(), x_reg.max(), 200)
+                            y_line = a * np.log(x_line) + b
+
+                            fig_arg.add_trace(go.Scatter(
+                                x=x_line,
+                                y=y_line,
+                                mode="lines",
+                                name="Regresión log",
+                                line=dict(dash="dash")
+                            ))
+
+                        fig_arg.update_layout(
+                            xaxis_title="Duration (años)",
+                            yaxis_title="TIR (%)",
+                            template="plotly_white",
+                            height=420,
+                            margin=dict(l=10, r=10, t=30, b=10),
+                            showlegend=False
+                        )
+
+                        st.plotly_chart(fig_arg, use_container_width=True)
+                    else:
+                        st.info("No hay suficientes Bonares para graficar.")
+
+                with subcol2:
+                    st.markdown("#### Globales (Ley NY)")
+
+                    if len(df_ny) >= 2:
+                        x = df_ny["Duration (años)"].astype(float).values
+                        y = df_ny["TIR (%)"].astype(float).values
+
+                        fig_ny = go.Figure()
+
+                        fig_ny.add_trace(go.Scatter(
+                            x=x,
+                            y=y,
+                            mode="markers+text",
+                            text=df_ny["Bono"],
+                            textposition="top center",
+                            name="Globales"
+                        ))
+
+                        mask = x > 0
+                        x_reg = x[mask]
+                        y_reg = y[mask]
+
+                        if len(x_reg) >= 2:
+                            coef = np.polyfit(np.log(x_reg), y_reg, 1)
+                            a, b = coef
+
+                            x_line = np.linspace(x_reg.min(), x_reg.max(), 200)
+                            y_line = a * np.log(x_line) + b
+
+                            fig_ny.add_trace(go.Scatter(
+                                x=x_line,
+                                y=y_line,
+                                mode="lines",
+                                name="Regresión log",
+                                line=dict(dash="dash")
+                            ))
+
+                        fig_ny.update_layout(
+                            xaxis_title="Duration (años)",
+                            yaxis_title="TIR (%)",
+                            template="plotly_white",
+                            height=420,
+                            margin=dict(l=10, r=10, t=30, b=10),
+                            showlegend=False
+                        )
+
+                        st.plotly_chart(fig_ny, use_container_width=True)
+                    else:
+                        st.info("No hay suficientes Globales para graficar.")
+
 
             st.markdown("---")
             st.subheader("Flujos del bono")

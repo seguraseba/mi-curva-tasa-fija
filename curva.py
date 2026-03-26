@@ -3456,7 +3456,6 @@ with tab_leg:
                 "bono": "Bono",
                 "symbol": "Ticker",
                 "legislacion": "Ley",
-                "bono_modelo": "Modelo flujo",
                 "precio": "Precio",
                 "vencimiento": "Vencimiento",
                 "años_al_vto": "Años al vto",

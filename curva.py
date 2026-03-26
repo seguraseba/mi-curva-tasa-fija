@@ -3326,13 +3326,6 @@ with tab_carry:
 with tab_leg:
     st.subheader("Spread legislación en vivo")
 
-    precio_base = st.selectbox(
-        "Campo de precio",
-        options=["c", "px_bid", "px_ask"],
-        index=0,
-        help="c = último precio, px_bid = bid, px_ask = ask"
-    )
-
     try:
         df_leg = tabla_spread_legislacion(precio_col=precio_base)
     except Exception as e:

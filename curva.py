@@ -695,6 +695,54 @@ BOND_RULES = {
         ],
     },
 
+
+    "GD46": {
+        "full_name": "Bonos Globales de la República Argentina en USD Step Up 2046 – Ley Nueva York",
+        "currency": "USD",
+        "issue_date": date(2020, 9, 4),
+        "maturity": date(2046, 7, 9),
+        "frequency": 2,
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "New York",
+        "tipo": "step_up",
+        "coupon_schedule": [
+            (date(2020, 9, 4),  date(2021, 7, 9),  0.00125),
+            (date(2021, 7, 9),  date(2022, 7, 9),  0.01125),
+            (date(2022, 7, 9),  date(2023, 7, 9),  0.01500),
+            (date(2023, 7, 9),  date(2024, 7, 9),  0.03625),
+            (date(2024, 7, 9),  date(2027, 7, 9),  0.04125),
+            (date(2027, 7, 9),  date(2028, 7, 9),  0.04375),
+            (date(2028, 7, 9),  date(2046, 7, 9),  0.05000),
+        ],
+        "first_coupon_date": date(2021, 7, 9),
+        "coupon_dates": ("01-09", "07-09"),
+        "amortization_schedule": [
+            (date(2025, 1, 9), 1/44), (date(2025, 7, 9), 1/44),
+            (date(2026, 1, 9), 1/44), (date(2026, 7, 9), 1/44),
+            (date(2027, 1, 9), 1/44), (date(2027, 7, 9), 1/44),
+            (date(2028, 1, 9), 1/44), (date(2028, 7, 9), 1/44),
+            (date(2029, 1, 9), 1/44), (date(2029, 7, 9), 1/44),
+            (date(2030, 1, 9), 1/44), (date(2030, 7, 9), 1/44),
+            (date(2031, 1, 9), 1/44), (date(2031, 7, 9), 1/44),
+            (date(2032, 1, 9), 1/44), (date(2032, 7, 9), 1/44),
+            (date(2033, 1, 9), 1/44), (date(2033, 7, 9), 1/44),
+            (date(2034, 1, 9), 1/44), (date(2034, 7, 9), 1/44),
+            (date(2035, 1, 9), 1/44), (date(2035, 7, 9), 1/44),
+            (date(2036, 1, 9), 1/44), (date(2036, 7, 9), 1/44),
+            (date(2037, 1, 9), 1/44), (date(2037, 7, 9), 1/44),
+            (date(2038, 1, 9), 1/44), (date(2038, 7, 9), 1/44),
+            (date(2039, 1, 9), 1/44), (date(2039, 7, 9), 1/44),
+            (date(2040, 1, 9), 1/44), (date(2040, 7, 9), 1/44),
+            (date(2041, 1, 9), 1/44), (date(2041, 7, 9), 1/44),
+            (date(2042, 1, 9), 1/44), (date(2042, 7, 9), 1/44),
+            (date(2043, 1, 9), 1/44), (date(2043, 7, 9), 1/44),
+            (date(2044, 1, 9), 1/44), (date(2044, 7, 9), 1/44),
+            (date(2045, 1, 9), 1/44), (date(2045, 7, 9), 1/44),
+            (date(2046, 1, 9), 1/44), (date(2046, 7, 9), 1/44),
+        ],
+    },
+
     # ── E. TX26 – BONCER 2026 2.00% ────────────────────────────────────────
     "TX26": {
         "full_name": "Bonos del Tesoro Nacional en Pesos con Ajuste por CER 2,00% Vto. 2026",
@@ -801,6 +849,7 @@ SOBERANOS_API_MAP = {
     "GD35D": "GD35",
     "GD38D": "GD38",
     "GD41D": "GD41",
+    "GD46D": "GD46",
 }
 
 GLOBAL_RULE_ALIAS = {
@@ -3548,7 +3597,7 @@ with tab_leg:
 
             bono_sel = st.selectbox(
                 "Seleccionar bono para ver flujos",
-                options=["AL29", "AL30", "AL35", "AE38", "AL41", "GD29", "GD30", "GD35", "GD38", "GD41"],
+                options=["AL29", "AL30", "AL35", "AE38", "AL41", "GD29", "GD30", "GD35", "GD38", "GD41", "GD46"],
                 index=1,
                 key="bono_flujos_soberano"
             )

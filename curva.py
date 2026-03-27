@@ -94,32 +94,21 @@ def bopreales_usd_lista(precio_col="c"):
     elif isinstance(data, dict):
         if "data" in data and isinstance(data["data"], list):
             df_api = pd.DataFrame(data["data"])
-
         elif "result" in data and isinstance(data["result"], list):
             df_api = pd.DataFrame(data["result"])
-
         else:
-            rows = []
+            rows_api = []
             for k, v in data.items():
                 if isinstance(v, dict):
                     row = v.copy()
                     if "symbol" not in row:
                         row["symbol"] = k
-                    rows.append(row)
-            df_api = pd.DataFrame(rows)
-            st.write("Columnas API:", list(df_api.columns))
-
-            if "symbol" in df_api.columns:
-                st.write("Primeros symbols:", df_api["symbol"].head(20).tolist())
-            else:
-                st.write("⚠️ No existe columna 'symbol'")
+                    rows_api.append(row)
+            df_api = pd.DataFrame(rows_api)
     else:
         return pd.DataFrame()
 
-    if df_api.empty:
-        return pd.DataFrame()
-
-    if "symbol" not in df_api.columns:
+    if df_api.empty or "symbol" not in df_api.columns:
         return pd.DataFrame()
 
     df_api["symbol"] = df_api["symbol"].astype(str).str.upper().str.strip()
@@ -141,11 +130,7 @@ def bopreales_usd_lista(precio_col="c"):
         if pd.isna(precio) or precio <= 0:
             continue
 
-        try:
-            df_flujos = tabla_flujos_bono(bono_modelo, vn=100.0).copy()
-        except Exception:
-            continue
-
+        df_flujos = tabla_flujos_bono(bono_modelo, vn=100.0).copy()
         if df_flujos.empty:
             continue
 
@@ -917,6 +902,126 @@ BOND_RULES = {
     ),
     "amortization_schedule": [
         (date(2028, 10, 31), 1.00),
+    ],
+},
+
+"BPOA7": {
+    "full_name": "BOPREAL Serie 1A 5% 2027",
+    "currency": "USD",
+    "issue_date": date(2024, 1, 5),
+    "maturity": date(2027, 10, 31),
+    "frequency": 2,
+    "day_count": "30/360",
+    "min_denomination": 1.0,
+    "governing_law": "Argentina",
+    "tipo": "fixed",
+    "coupon_schedule": [
+        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
+    ],
+    "first_coupon_date": date(2024, 10, 31),
+    "coupon_dates": ("04-30", "10-31"),
+    "amortization_schedule": [
+        (date(2025, 4, 30), 0.20),
+    ],
+},
+
+"BPOB7": {
+    "full_name": "BOPREAL Serie 1B 5% 2027",
+    "currency": "USD",
+    "issue_date": date(2024, 1, 5),
+    "maturity": date(2027, 10, 31),
+    "frequency": 2,
+    "day_count": "30/360",
+    "min_denomination": 1.0,
+    "governing_law": "Argentina",
+    "tipo": "fixed",
+    "coupon_schedule": [
+        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
+    ],
+    "first_coupon_date": date(2024, 10, 31),
+    "coupon_dates": ("04-30", "10-31"),
+    "amortization_schedule": [
+        (date(2026, 4, 30), 0.20),
+    ],
+},
+
+"BPOC7": {
+    "full_name": "BOPREAL Serie 1C 5% 2027",
+    "currency": "USD",
+    "issue_date": date(2024, 1, 5),
+    "maturity": date(2027, 10, 31),
+    "frequency": 2,
+    "day_count": "30/360",
+    "min_denomination": 1.0,
+    "governing_law": "Argentina",
+    "tipo": "fixed",
+    "coupon_schedule": [
+        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
+    ],
+    "first_coupon_date": date(2024, 10, 31),
+    "coupon_dates": ("04-30", "10-31"),
+    "amortization_schedule": [
+        (date(2027, 4, 30), 0.30),
+    ],
+},
+
+"BPOD7": {
+    "full_name": "BOPREAL Serie 1D 5% 2027",
+    "currency": "USD",
+    "issue_date": date(2024, 1, 5),
+    "maturity": date(2027, 10, 31),
+    "frequency": 2,
+    "day_count": "30/360",
+    "min_denomination": 1.0,
+    "governing_law": "Argentina",
+    "tipo": "fixed",
+    "coupon_schedule": [
+        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
+    ],
+    "first_coupon_date": date(2024, 10, 31),
+    "coupon_dates": ("04-30", "10-31"),
+    "amortization_schedule": [
+        (date(2027, 10, 31), 0.30),
+    ],
+},
+
+"BPOA8": {
+    "full_name": "BOPREAL Serie 4A 3% 2028",
+    "currency": "USD",
+    "issue_date": date(2025, 6, 24),
+    "maturity": date(2028, 10, 31),
+    "frequency": 2,
+    "day_count": "30/360",
+    "min_denomination": 1.0,
+    "governing_law": "Argentina",
+    "tipo": "fixed",
+    "coupon_schedule": [
+        (date(2025, 6, 24), date(2028, 10, 31), 0.03000),
+    ],
+    "first_coupon_date": date(2025, 10, 31),
+    "coupon_dates": ("04-30", "10-31"),
+    "amortization_schedule": [
+        (date(2028, 4, 30), 1/3),
+    ],
+},
+
+"BPOB8": {
+    "full_name": "BOPREAL Serie 4B 3% 2028",
+    "currency": "USD",
+    "issue_date": date(2025, 6, 24),
+    "maturity": date(2028, 10, 31),
+    "frequency": 2,
+    "day_count": "30/360",
+    "min_denomination": 1.0,
+    "governing_law": "Argentina",
+    "tipo": "fixed",
+    "coupon_schedule": [
+        (date(2025, 6, 24), date(2028, 10, 31), 0.03000),
+    ],
+    "first_coupon_date": date(2025, 10, 31),
+    "coupon_dates": ("04-30", "10-31"),
+    "amortization_schedule": [
+        (date(2028, 10, 31), 2/3),
     ],
 },
 
@@ -3553,7 +3658,7 @@ with tab_carry:
 with tab_leg:
     st.subheader("Spread legislación en vivo")
 
-    precio_base = st.selectbox( 
+    precio_base = st.selectbox(
         "Campo de precio",
         options=["c", "px_bid", "px_ask"],
         index=0,

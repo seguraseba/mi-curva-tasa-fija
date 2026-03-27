@@ -88,27 +88,45 @@ def bopreales_usd_lista(precio_col="c"):
     except Exception:
         return pd.DataFrame()
 
-    if isinstance(data, dict):
-        if "data" in data:
-            data = data["data"]
-        elif "result" in data:
-            data = data["result"]
-        else:
-            data = list(data.values())
+    if isinstance(data, list):
+        df_api = pd.DataFrame(data)
 
-    df_api = pd.DataFrame(data)
-    if df_api.empty or "symbol" not in df_api.columns:
+    elif isinstance(data, dict):
+        if "data" in data and isinstance(data["data"], list):
+            df_api = pd.DataFrame(data["data"])
+
+        elif "result" in data and isinstance(data["result"], list):
+            df_api = pd.DataFrame(data["result"])
+
+        else:
+            rows = []
+            for k, v in data.items():
+                if isinstance(v, dict):
+                    row = v.copy()
+                    if "symbol" not in row:
+                        row["symbol"] = k
+                    rows.append(row)
+            df_api = pd.DataFrame(rows)
+    else:
         return pd.DataFrame()
+
+    if df_api.empty:
+        return pd.DataFrame()
+
+    if "symbol" not in df_api.columns:
+        return pd.DataFrame()
+
+    df_api["symbol"] = df_api["symbol"].astype(str).str.upper().str.strip()
 
     hoy = pd.Timestamp.today().normalize()
     rows = []
 
     for item in bop_map:
-        symbol = item["symbol"]
+        symbol = item["symbol"].upper()
         bono = item["bono"]
         bono_modelo = item["bono_modelo"]
 
-        df_match = df_api[df_api["symbol"].astype(str).str.upper() == symbol.upper()].copy()
+        df_match = df_api[df_api["symbol"] == symbol].copy()
         if df_match.empty:
             continue
 

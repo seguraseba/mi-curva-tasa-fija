@@ -905,42 +905,44 @@ BOND_RULES = {
 },
 
 "BPOA7": {
-    "full_name": "BOPREAL Serie 1A 5% 2025",
+    "full_name": "BOPREAL Serie 1A 5% 2027",
     "currency": "USD",
     "issue_date": date(2024, 1, 5),
-    "maturity": date(2025, 4, 30),
+    "maturity": date(2027, 10, 31),
     "frequency": 2,
     "day_count": "30/360",
     "min_denomination": 1.0,
     "governing_law": "Argentina",
     "tipo": "fixed",
     "coupon_schedule": [
-        (date(2024, 1, 5), date(2025, 4, 30), 0.05000),
+        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
     ],
     "first_coupon_date": date(2024, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2025, 4, 30), 1.00),
+        (date(2027, 4, 30), 0.50),
+        (date(2027, 10, 31), 0.50),
     ],
 },
 
 "BPOB7": {
-    "full_name": "BOPREAL Serie 1B 5% 2026",
+    "full_name": "BOPREAL Serie 1B 5% 2027",
     "currency": "USD",
     "issue_date": date(2024, 1, 5),
-    "maturity": date(2026, 4, 30),
+    "maturity": date(2027, 10, 31),
     "frequency": 2,
     "day_count": "30/360",
     "min_denomination": 1.0,
     "governing_law": "Argentina",
     "tipo": "fixed",
     "coupon_schedule": [
-        (date(2024, 1, 5), date(2026, 4, 30), 0.05000),
+        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
     ],
     "first_coupon_date": date(2024, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2026, 4, 30), 1.00),
+        (date(2027, 4, 30), 0.50),
+        (date(2027, 10, 31), 0.50),
     ],
 },
 
@@ -948,19 +950,20 @@ BOND_RULES = {
     "full_name": "BOPREAL Serie 1C 5% 2027",
     "currency": "USD",
     "issue_date": date(2024, 1, 5),
-    "maturity": date(2027, 4, 30),
+    "maturity": date(2027, 10, 31),
     "frequency": 2,
     "day_count": "30/360",
     "min_denomination": 1.0,
     "governing_law": "Argentina",
     "tipo": "fixed",
     "coupon_schedule": [
-        (date(2024, 1, 5), date(2027, 4, 30), 0.05000),
+        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
     ],
     "first_coupon_date": date(2024, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2027, 4, 30), 1.00),
+        (date(2027, 4, 30), 0.50),
+        (date(2027, 10, 31), 0.50),
     ],
 },
 
@@ -980,7 +983,8 @@ BOND_RULES = {
     "first_coupon_date": date(2024, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2027, 10, 31), 1.00),
+        (date(2027, 4, 30), 0.50),
+        (date(2027, 10, 31), 0.50),
     ],
 },
 

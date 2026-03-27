@@ -909,19 +909,19 @@ BOND_RULES = {
     "full_name": "BOPREAL Serie 1A 5% 2027",
     "currency": "USD",
     "issue_date": date(2024, 1, 5),
-    "maturity": date(2027, 10, 31),
+    "maturity": date(2025, 4, 30),
     "frequency": 2,
     "day_count": "30/360",
     "min_denomination": 1.0,
     "governing_law": "Argentina",
     "tipo": "fixed",
     "coupon_schedule": [
-        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
+        (date(2024, 1, 5), date(2025, 4, 30), 0.05000),
     ],
     "first_coupon_date": date(2024, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2025, 4, 30), 0.20),
+        (date(2025, 4, 30), 1.00),
     ],
 },
 
@@ -929,19 +929,19 @@ BOND_RULES = {
     "full_name": "BOPREAL Serie 1B 5% 2027",
     "currency": "USD",
     "issue_date": date(2024, 1, 5),
-    "maturity": date(2027, 10, 31),
+    "maturity": date(2026, 4, 30),
     "frequency": 2,
     "day_count": "30/360",
     "min_denomination": 1.0,
     "governing_law": "Argentina",
     "tipo": "fixed",
     "coupon_schedule": [
-        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
+        (date(2024, 1, 5), date(2026, 4, 30), 0.05000),
     ],
     "first_coupon_date": date(2024, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2026, 4, 30), 0.20),
+        (date(2026, 4, 30), 1.00),
     ],
 },
 
@@ -949,19 +949,19 @@ BOND_RULES = {
     "full_name": "BOPREAL Serie 1C 5% 2027",
     "currency": "USD",
     "issue_date": date(2024, 1, 5),
-    "maturity": date(2027, 10, 31),
+    "maturity": date(2027, 4, 30),
     "frequency": 2,
     "day_count": "30/360",
     "min_denomination": 1.0,
     "governing_law": "Argentina",
     "tipo": "fixed",
     "coupon_schedule": [
-        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
+        (date(2024, 1, 5), date(2027, 4, 30), 0.05000),
     ],
     "first_coupon_date": date(2024, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2027, 4, 30), 0.30),
+        (date(2027, 4, 30), 1.00),
     ],
 },
 
@@ -981,7 +981,7 @@ BOND_RULES = {
     "first_coupon_date": date(2024, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2027, 10, 31), 0.30),
+        (date(2027, 10, 31), 1.00),
     ],
 },
 
@@ -989,19 +989,19 @@ BOND_RULES = {
     "full_name": "BOPREAL Serie 4A 3% 2028",
     "currency": "USD",
     "issue_date": date(2025, 6, 24),
-    "maturity": date(2028, 10, 31),
+    "maturity": date(2028, 4, 30),
     "frequency": 2,
     "day_count": "30/360",
     "min_denomination": 1.0,
     "governing_law": "Argentina",
     "tipo": "fixed",
     "coupon_schedule": [
-        (date(2025, 6, 24), date(2028, 10, 31), 0.03000),
+        (date(2025, 6, 24), date(2028, 4, 30), 0.03000),
     ],
     "first_coupon_date": date(2025, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2028, 4, 30), 1/3),
+        (date(2028, 4, 30), 1.00),
     ],
 },
 
@@ -1021,7 +1021,7 @@ BOND_RULES = {
     "first_coupon_date": date(2025, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2028, 10, 31), 2/3),
+        (date(2028, 10, 31), 1.00),
     ],
 },
 
@@ -3004,7 +3004,7 @@ if "bonos_spread" not in st.session_state:
 # =========================
 
 tab_curvas, tab_leg, tab_corpos, tab_cer_proj, tab_carry, tab_futuros = st.tabs(
-    ["Curvas", "Soberanos", "Corporativos", "Proyección CER", "Carry Trade", "Futuros Dólar"]
+    ["Curvas", "Soberanos/Bopreales", "Corporativos", "Proyección CER", "Carry Trade", "Futuros Dólar"]
 )
 # =========================
 # TAB 1: CURVAS (TU APP ACTUAL)
@@ -3983,7 +3983,11 @@ with tab_leg:
 
         bono_sel = st.selectbox(
             "Seleccionar bono para ver flujos",
-            options=["AL29", "AL30", "AL35", "AE38", "AL41", "GD29", "GD30", "GD35", "GD38", "GD41", "GD46"],
+            options=[
+    "AL29", "AL30", "AL35", "AE38", "AL41",
+    "GD29", "GD30", "GD35", "GD38", "GD41", "GD46",
+    "BPO27", "BPO28",
+    "BPOA7", "BPOB7", "BPOC7", "BPOD7", "BPOA8", "BPOB8"],
             index=1,
             key="bono_flujos_soberano"
         )

@@ -477,7 +477,6 @@ BONOS_TARGET = [
 ]
 
 BONOS_CER_TARGET = [
-    "TZXM6",
     "TZX26",
     "TX26",
     "TZXO6",

@@ -988,19 +988,19 @@ BOND_RULES = {
     "full_name": "BOPREAL Serie 4A 3% 2028",
     "currency": "USD",
     "issue_date": date(2025, 6, 24),
-    "maturity": date(2028, 4, 30),
+    "maturity": date(2028, 10, 31),
     "frequency": 2,
     "day_count": "30/360",
     "min_denomination": 1.0,
     "governing_law": "Argentina",
     "tipo": "fixed",
     "coupon_schedule": [
-        (date(2025, 6, 24), date(2028, 4, 30), 0.03000),
+        (date(2025, 6, 24), date(2028, 10, 31), 0.03000),
     ],
     "first_coupon_date": date(2025, 10, 31),
     "coupon_dates": ("04-30", "10-31"),
     "amortization_schedule": [
-        (date(2028, 4, 30), 1.00),
+        (date(2028, 10, 31), 1.00),
     ],
 },
 
@@ -1023,6 +1023,8 @@ BOND_RULES = {
         (date(2028, 10, 31), 1.00),
     ],
 },
+
+
 
 
     # ── E. TX26 – BONCER 2026 2.00% ────────────────────────────────────────

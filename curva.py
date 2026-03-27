@@ -1456,16 +1456,24 @@ def _fetch_json(url: str):
 from dateutil.relativedelta import relativedelta
 
 def generar_fechas_cupon_desde_rules(rules: dict):
-    """
-    Genera todas las fechas de cupón desde first_coupon_date
-    hasta maturity inclusive, con frecuencia semestral.
-    """
     first_coupon = rules.get("first_coupon_date")
     maturity = rules.get("maturity")
     freq = rules.get("frequency", 2)
+    coupon_dates = rules.get("coupon_dates")
 
     if first_coupon is None or maturity is None:
         return []
+
+    if coupon_dates:
+        fechas = generar_fechas_pago(
+            rules["issue_date"],
+            maturity,
+            freq,
+            coupon_dates=coupon_dates
+        )
+        fechas = [f.date() if isinstance(f, pd.Timestamp) else f for f in fechas]
+        fechas = [f for f in fechas if f >= first_coupon]
+        return fechas
 
     meses = int(12 / freq)
     fechas = []
@@ -1477,7 +1485,41 @@ def generar_fechas_cupon_desde_rules(rules: dict):
 
     return fechas
 
-def generar_fechas_pago(fecha_emision: date, fecha_venc: date, freq: int):
+
+def generar_fechas_pago(fecha_emision: date, fecha_venc: date, freq: int, coupon_dates=None):
+    if coupon_dates:
+        fechas = []
+        anio_ini = fecha_emision.year
+        anio_fin = fecha_venc.year
+
+        for anio in range(anio_ini, anio_fin + 1):
+            for md in coupon_dates:
+                mes, dia = map(int, md.split("-"))
+                try:
+                    f = pd.Timestamp(date(anio, mes, dia))
+                except ValueError:
+                    continue
+
+                if pd.Timestamp(fecha_emision) < f <= pd.Timestamp(fecha_venc):
+                    fechas.append(f.normalize())
+
+        fechas = sorted(set(fechas))
+
+        fechas_limpias = []
+        for f in fechas:
+            if fechas_limpias:
+                prev = fechas_limpias[-1]
+                if (
+                    prev.year == f.year
+                    and prev.month == f.month
+                    and abs((f - prev).days) <= 1
+                ):
+                    fechas_limpias[-1] = pd.Timestamp(fecha_venc).normalize()
+                    continue
+            fechas_limpias.append(f)
+
+        return fechas_limpias
+
     meses = int(12 / freq)
     fechas = []
     f = pd.Timestamp(fecha_emision)
@@ -1501,7 +1543,13 @@ def generar_flujos_reales(symbol: str, vn=100):
     # PARP separado
     if symbol == "PARP":
         rule = PARP_RULE
-        fechas = generar_fechas_pago(fecha_emis, fecha_venc, rule["freq"])
+
+        fechas = generar_fechas_pago(
+            fecha_emis,
+            fecha_venc,
+            rule["frequency"],
+            coupon_dates=rule.get("coupon_dates")
+        )
 
         n_total = len(fechas)
         n_amort = rule["amort_last_n"]
@@ -1543,7 +1591,12 @@ def generar_flujos_reales(symbol: str, vn=100):
     if rule is None:
         return None
 
-    fechas = generar_fechas_pago(fecha_emis, fecha_venc, rule["freq"])
+    fechas = generar_fechas_pago(
+        fecha_emis,
+        fecha_venc,
+        rule["frequency"],
+        coupon_dates=rule.get("coupon_dates")
+    )
 
     n_total = len(fechas)
     n_amort = rule["amort_last_n"]

@@ -107,8 +107,14 @@ def bopreales_usd_lista(precio_col="c"):
                         row["symbol"] = k
                     rows.append(row)
             df_api = pd.DataFrame(rows)
-    else:
-        return pd.DataFrame()
+            st.write("Columnas API:", list(df_api.columns))
+
+            if "symbol" in df_api.columns:
+                st.write("Primeros symbols:", df_api["symbol"].head(20).tolist())
+            else:
+                st.write("⚠️ No existe columna 'symbol'")
+            else:
+                return pd.DataFrame()
 
     if df_api.empty:
         return pd.DataFrame()

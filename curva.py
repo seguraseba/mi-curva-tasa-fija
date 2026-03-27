@@ -3531,7 +3531,7 @@ with tab_leg:
 
     precio_base = st.selectbox(
         "Campo de precio",
-        options=["Último operado", "px_bid", "px_ask"],
+        options=["c", "px_bid", "px_ask"],
         index=0,
         help="c = último precio, px_bid = bid, px_ask = ask"
     )
@@ -3745,160 +3745,159 @@ with tab_leg:
                 else:
                     st.info("No hay suficientes Globales para graficar.")
 
-
         st.markdown("---")
-            st.subheader("BOPREAL USD")
+        st.subheader("BOPREAL USD")
 
-            if st.button("Refrescar BOPREAL USD", key="refresh_bopreales_leg"):
-                bopreales_usd_lista.clear()
+        if st.button("Refrescar BOPREAL USD", key="refresh_bopreales_leg"):
+            bopreales_usd_lista.clear()
 
-            df_bop = bopreales_usd_lista(precio_col=precio_base).copy()
+        df_bop = bopreales_usd_lista(precio_col=precio_base).copy()
 
-            if df_bop.empty:
-                st.info("No se encontraron BOPREAL USD en la API de bonos.")
-            else:
-                df_bop["precio"] = pd.to_numeric(df_bop["precio"], errors="coerce").round(2)
-                df_bop["años_al_vto"] = pd.to_numeric(df_bop["años_al_vto"], errors="coerce").round(2)
-                df_bop["tir"] = pd.to_numeric(df_bop["tir"], errors="coerce") * 100
-                df_bop["tir"] = df_bop["tir"].round(2)
-                df_bop["duration"] = pd.to_numeric(df_bop["duration"], errors="coerce").round(2)
-                df_bop["vencimiento"] = pd.to_datetime(df_bop["vencimiento"]).dt.strftime("%d-%m-%Y")
+        if df_bop.empty:
+            st.info("No se encontraron BOPREAL USD en la API de bonos.")
+        else:
+            df_bop["precio"] = pd.to_numeric(df_bop["precio"], errors="coerce").round(2)
+            df_bop["años_al_vto"] = pd.to_numeric(df_bop["años_al_vto"], errors="coerce").round(2)
+            df_bop["tir"] = pd.to_numeric(df_bop["tir"], errors="coerce") * 100
+            df_bop["tir"] = df_bop["tir"].round(2)
+            df_bop["duration"] = pd.to_numeric(df_bop["duration"], errors="coerce").round(2)
+            df_bop["vencimiento"] = pd.to_datetime(df_bop["vencimiento"]).dt.strftime("%d-%m-%Y")
 
-                df_bop = df_bop.rename(columns={
-                    "bono": "Bono",
-                    "symbol": "Ticker",
-                    "tipo": "Tipo",
-                    "bono_modelo": "Modelo flujo",
-                    "precio": "Precio",
-                    "vencimiento": "Vencimiento",
-                    "años_al_vto": "Años al vto",
-                    "tir": "TIR (%)",
-                    "duration": "Duration (años)"
-                })
+            df_bop = df_bop.rename(columns={
+                "bono": "Bono",
+                "symbol": "Ticker",
+                "tipo": "Tipo",
+                "bono_modelo": "Modelo flujo",
+                "precio": "Precio",
+                "vencimiento": "Vencimiento",
+                "años_al_vto": "Años al vto",
+                "tir": "TIR (%)",
+                "duration": "Duration (años)"
+            })
 
-                df_bop = df_bop[[
-                    "Bono",
-                    "Ticker",
-                    "Tipo",
-                    "Modelo flujo",
-                    "Precio",
-                    "Vencimiento",
-                    "Años al vto",
-                    "TIR (%)",
-                    "Duration (años)"
-                ]]
+            df_bop = df_bop[[
+                "Bono",
+                "Ticker",
+                "Tipo",
+                "Modelo flujo",
+                "Precio",
+                "Vencimiento",
+                "Años al vto",
+                "TIR (%)",
+                "Duration (años)"
+            ]]
 
-                col_tabla_bop, col_graf_bop = st.columns([1.2, 1])
+            col_tabla_bop, col_graf_bop = st.columns([1.2, 1])
 
-                with col_tabla_bop:
-                    st.dataframe(
-                        df_bop,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
-                with col_graf_bop:
-                    st.markdown("### Curva BOPREAL USD")
-
-                    df_plot_bop = df_bop.dropna(subset=["Duration (años)", "TIR (%)"]).copy()
-                    df_plot_bop = df_plot_bop.sort_values("Duration (años)")
-
-                    if len(df_plot_bop) >= 2:
-                        x = df_plot_bop["Duration (años)"].astype(float).values
-                        y = df_plot_bop["TIR (%)"].astype(float).values
-
-                        fig_bop = go.Figure()
-
-                        fig_bop.add_trace(go.Scatter(
-                            x=x,
-                            y=y,
-                            mode="markers+text",
-                            text=df_plot_bop["Bono"],
-                            textposition="top center",
-                            name="BOPREAL"
-                        ))
-
-                        mask = x > 0
-                        x_reg = x[mask]
-                        y_reg = y[mask]
-
-                        if len(x_reg) >= 2:
-                            coef = np.polyfit(np.log(x_reg), y_reg, 1)
-                            a, b = coef
-
-                            x_line = np.linspace(x_reg.min(), x_reg.max(), 200)
-                            y_line = a * np.log(x_line) + b
-
-                            fig_bop.add_trace(go.Scatter(
-                                x=x_line,
-                                y=y_line,
-                                mode="lines",
-                                name="Regresión log",
-                                line=dict(dash="dash")
-                            ))
-
-                        fig_bop.update_layout(
-                            xaxis_title="Duration (años)",
-                            yaxis_title="TIR (%)",
-                            template="plotly_white",
-                            height=420,
-                            margin=dict(l=10, r=10, t=30, b=10),
-                            showlegend=False
-                        )
-
-                        st.plotly_chart(fig_bop, use_container_width=True)
-                    else:
-                        st.info("No hay suficientes BOPREAL para graficar.")
-
-            st.markdown("---")
-            st.subheader("Flujos del bono")
-
-            bono_sel = st.selectbox(
-                "Seleccionar bono para ver flujos",
-                options=["AL29", "AL30", "AL35", "AE38", "AL41", "GD29", "GD30", "GD35", "GD38", "GD41", "GD46"],
-                index=1,
-                key="bono_flujos_soberano"
-            )
-
-            df_flujos = tabla_flujos_bono(bono_sel, vn=100.0)
-
-            if df_flujos.empty:
-                st.info("No hay flujos futuros para este bono.")
-            else:
-                df_flujos_show = df_flujos.copy()
-
-                df_flujos_show["fecha"] = pd.to_datetime(df_flujos_show["fecha"]).dt.strftime("%d-%m-%Y")
-                df_flujos_show["tasa_anual"] = (pd.to_numeric(df_flujos_show["tasa_anual"], errors="coerce") * 100).round(4)
-                df_flujos_show["outstanding_previo"] = pd.to_numeric(df_flujos_show["outstanding_previo"], errors="coerce").round(4)
-                df_flujos_show["interes"] = pd.to_numeric(df_flujos_show["interes"], errors="coerce").round(6)
-                df_flujos_show["amort_pct"] = (pd.to_numeric(df_flujos_show["amort_pct"], errors="coerce") * 100).round(4)
-                df_flujos_show["amort"] = pd.to_numeric(df_flujos_show["amort"], errors="coerce").round(6)
-                df_flujos_show["flujo"] = pd.to_numeric(df_flujos_show["flujo"], errors="coerce").round(6)
-
-                df_flujos_show["fecha_inicio_periodo"] = pd.to_datetime(
-                    df_flujos_show["fecha_inicio_periodo"]
-                ).dt.strftime("%d-%m-%Y")
-
-                df_flujos_show = df_flujos_show.rename(columns={
-                    "fecha": "Fecha",
-                    "fecha_inicio_periodo": "Inicio período",
-                    "outstanding_previo": "VN previo",
-                    "tasa_anual": "Tasa anual (%)",
-                    "interes": "Interés",
-                    "amort_pct": "Amort (%)",
-                    "amort": "Amortización",
-                    "flujo": "Flujo total"
-                })
-
-                df_flujos_show = df_flujos_show[
-                    ["Inicio período", "Fecha", "VN previo", "Tasa anual (%)", "Interés", "Amort (%)", "Amortización", "Flujo total"]
-                ]
-
+            with col_tabla_bop:
                 st.dataframe(
-                    df_flujos_show,
+                    df_bop,
                     use_container_width=True,
                     hide_index=True
                 )
+
+            with col_graf_bop:
+                st.markdown("### Curva BOPREAL USD")
+
+                df_plot_bop = df_bop.dropna(subset=["Duration (años)", "TIR (%)"]).copy()
+                df_plot_bop = df_plot_bop.sort_values("Duration (años)")
+
+                if len(df_plot_bop) >= 2:
+                    x = df_plot_bop["Duration (años)"].astype(float).values
+                    y = df_plot_bop["TIR (%)"].astype(float).values
+
+                    fig_bop = go.Figure()
+
+                    fig_bop.add_trace(go.Scatter(
+                        x=x,
+                        y=y,
+                        mode="markers+text",
+                        text=df_plot_bop["Bono"],
+                        textposition="top center",
+                        name="BOPREAL"
+                    ))
+
+                    mask = x > 0
+                    x_reg = x[mask]
+                    y_reg = y[mask]
+
+                    if len(x_reg) >= 2:
+                        coef = np.polyfit(np.log(x_reg), y_reg, 1)
+                        a, b = coef
+
+                        x_line = np.linspace(x_reg.min(), x_reg.max(), 200)
+                        y_line = a * np.log(x_line) + b
+
+                        fig_bop.add_trace(go.Scatter(
+                            x=x_line,
+                            y=y_line,
+                            mode="lines",
+                            name="Regresión log",
+                            line=dict(dash="dash")
+                        ))
+
+                    fig_bop.update_layout(
+                        xaxis_title="Duration (años)",
+                        yaxis_title="TIR (%)",
+                        template="plotly_white",
+                        height=420,
+                        margin=dict(l=10, r=10, t=30, b=10),
+                        showlegend=False
+                    )
+
+                    st.plotly_chart(fig_bop, use_container_width=True)
+                else:
+                    st.info("No hay suficientes BOPREAL para graficar.")
+
+        st.markdown("---")
+        st.subheader("Flujos del bono")
+
+        bono_sel = st.selectbox(
+            "Seleccionar bono para ver flujos",
+            options=["AL29", "AL30", "AL35", "AE38", "AL41", "GD29", "GD30", "GD35", "GD38", "GD41", "GD46"],
+            index=1,
+            key="bono_flujos_soberano"
+        )
+
+        df_flujos = tabla_flujos_bono(bono_sel, vn=100.0)
+
+        if df_flujos.empty:
+            st.info("No hay flujos futuros para este bono.")
+        else:
+            df_flujos_show = df_flujos.copy()
+
+            df_flujos_show["fecha"] = pd.to_datetime(df_flujos_show["fecha"]).dt.strftime("%d-%m-%Y")
+            df_flujos_show["tasa_anual"] = (pd.to_numeric(df_flujos_show["tasa_anual"], errors="coerce") * 100).round(4)
+            df_flujos_show["outstanding_previo"] = pd.to_numeric(df_flujos_show["outstanding_previo"], errors="coerce").round(4)
+            df_flujos_show["interes"] = pd.to_numeric(df_flujos_show["interes"], errors="coerce").round(6)
+            df_flujos_show["amort_pct"] = (pd.to_numeric(df_flujos_show["amort_pct"], errors="coerce") * 100).round(4)
+            df_flujos_show["amort"] = pd.to_numeric(df_flujos_show["amort"], errors="coerce").round(6)
+            df_flujos_show["flujo"] = pd.to_numeric(df_flujos_show["flujo"], errors="coerce").round(6)
+
+            df_flujos_show["fecha_inicio_periodo"] = pd.to_datetime(
+                df_flujos_show["fecha_inicio_periodo"]
+            ).dt.strftime("%d-%m-%Y")
+
+            df_flujos_show = df_flujos_show.rename(columns={
+                "fecha": "Fecha",
+                "fecha_inicio_periodo": "Inicio período",
+                "outstanding_previo": "VN previo",
+                "tasa_anual": "Tasa anual (%)",
+                "interes": "Interés",
+                "amort_pct": "Amort (%)",
+                "amort": "Amortización",
+                "flujo": "Flujo total"
+            })
+
+            df_flujos_show = df_flujos_show[
+                ["Inicio período", "Fecha", "VN previo", "Tasa anual (%)", "Interés", "Amort (%)", "Amortización", "Flujo total"]
+            ]
+
+            st.dataframe(
+                df_flujos_show,
+                use_container_width=True,
+                hide_index=True
+            )
 
     except Exception as e:
         st.error(f"Error cargando soberanos USD: {e}")

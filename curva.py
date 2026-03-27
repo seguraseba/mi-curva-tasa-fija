@@ -906,7 +906,7 @@ BOND_RULES = {
 },
 
 "BPOA7": {
-    "full_name": "BOPREAL Serie 1A 5% 2027",
+    "full_name": "BOPREAL Serie 1A 5% 2025",
     "currency": "USD",
     "issue_date": date(2024, 1, 5),
     "maturity": date(2025, 4, 30),
@@ -926,7 +926,7 @@ BOND_RULES = {
 },
 
 "BPOB7": {
-    "full_name": "BOPREAL Serie 1B 5% 2027",
+    "full_name": "BOPREAL Serie 1B 5% 2026",
     "currency": "USD",
     "issue_date": date(2024, 1, 5),
     "maturity": date(2026, 4, 30),

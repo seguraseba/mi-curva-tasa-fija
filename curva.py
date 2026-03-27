@@ -113,8 +113,8 @@ def bopreales_usd_lista(precio_col="c"):
                 st.write("Primeros symbols:", df_api["symbol"].head(20).tolist())
             else:
                 st.write("⚠️ No existe columna 'symbol'")
-            else:
-                return pd.DataFrame()
+    else:
+        return pd.DataFrame()
 
     if df_api.empty:
         return pd.DataFrame()
@@ -3553,7 +3553,7 @@ with tab_carry:
 with tab_leg:
     st.subheader("Spread legislación en vivo")
 
-    precio_base = st.selectbox(
+    precio_base = st.selectbox( 
         "Campo de precio",
         options=["c", "px_bid", "px_ask"],
         index=0,

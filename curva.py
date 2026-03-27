@@ -3730,7 +3730,7 @@ with tab_leg:
 
     precio_base = st.selectbox(
         "Campo de precio",
-        options=["Último operado", "px_bid", "px_ask"],
+        options=["c", "px_bid", "px_ask"],
         index=0,
         help="c = último precio, px_bid = bid, px_ask = ask"
     )

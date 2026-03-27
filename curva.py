@@ -1181,17 +1181,28 @@ def accrued_interest(symbol, rules, fecha_val):
 def tasa_cupon_en_fecha(rules: dict, fecha_inicio_periodo):
     """
     Devuelve la tasa anual aplicable al período cuyo inicio es fecha_inicio_periodo.
-    Para step-up, la tasa se define por el tramo vigente al inicio del período,
-    no por la fecha de pago.
+    - step_up: usa coupon_schedule por tramos
+    - fixed con coupon_schedule: usa el único tramo cargado
+    - fixed con coupon: usa tasa fija directa
     """
-    if rules.get("tipo") == "step_up":
-        for f_ini, f_fin, tasa in rules.get("coupon_schedule", []):
+    if isinstance(fecha_inicio_periodo, pd.Timestamp):
+        fecha_inicio_periodo = fecha_inicio_periodo.date()
+
+    schedule = rules.get("coupon_schedule", [])
+
+    if schedule:
+        for f_ini, f_fin, tasa in schedule:
             if f_ini <= fecha_inicio_periodo < f_fin:
-                return tasa
+                return float(tasa)
+
+        if fecha_inicio_periodo == rules.get("maturity"):
+            for f_ini, f_fin, tasa in schedule:
+                if f_ini <= fecha_inicio_periodo <= f_fin:
+                    return float(tasa)
+
         return 0.0
 
     return float(rules.get("coupon", 0.0))
-
 
 @st.cache_data(ttl=30)
 def soberanos_usd_lista():
@@ -1251,6 +1262,7 @@ def soberanos_usd_lista():
 
     df = df.sort_values(["vencimiento", "bono"]).reset_index(drop=True)
     return df
+
 
 
 def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):

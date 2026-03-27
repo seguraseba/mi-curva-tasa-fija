@@ -70,6 +70,112 @@ def cargar_cer(path: Path, file_version: float) -> pd.DataFrame:
     )
     return df
 
+@st.cache_data(ttl=60)
+def bopreales_usd_lista(precio_col="c"):
+    bop_map = [
+        {"bono": "BPOA7", "symbol": "BPA7D", "bono_modelo": "BPOA7"},
+        {"bono": "BPOB7", "symbol": "BPB7D", "bono_modelo": "BPOB7"},
+        {"bono": "BPOC7", "symbol": "BPC7D", "bono_modelo": "BPOC7"},
+        {"bono": "BPOD7", "symbol": "BPD7D", "bono_modelo": "BPOD7"},
+        {"bono": "BPOA8", "symbol": "BPA8D", "bono_modelo": "BPOA8"},
+        {"bono": "BPOB8", "symbol": "BPB8D", "bono_modelo": "BPOB8"},
+    ]
+
+    try:
+        r = requests.get(URL_BONOS, timeout=20)
+        r.raise_for_status()
+        data = r.json()
+    except Exception:
+        return pd.DataFrame()
+
+    if isinstance(data, dict):
+        if "data" in data:
+            data = data["data"]
+        elif "result" in data:
+            data = data["result"]
+        else:
+            data = list(data.values())
+
+    df_api = pd.DataFrame(data)
+    if df_api.empty or "symbol" not in df_api.columns:
+        return pd.DataFrame()
+
+    hoy = pd.Timestamp.today().normalize()
+    rows = []
+
+    for item in bop_map:
+        symbol = item["symbol"]
+        bono = item["bono"]
+        bono_modelo = item["bono_modelo"]
+
+        df_match = df_api[df_api["symbol"].astype(str).str.upper() == symbol.upper()].copy()
+        if df_match.empty:
+            continue
+
+        row_api = df_match.iloc[0]
+        precio = pd.to_numeric(row_api.get(precio_col), errors="coerce")
+        if pd.isna(precio) or precio <= 0:
+            continue
+
+        try:
+            df_flujos = tabla_flujos_bono(bono_modelo, vn=100.0).copy()
+        except Exception:
+            continue
+
+        if df_flujos.empty:
+            continue
+
+        df_flujos["fecha"] = pd.to_datetime(df_flujos["fecha"], errors="coerce")
+        df_flujos["flujo"] = pd.to_numeric(df_flujos["flujo"], errors="coerce")
+        df_flujos = df_flujos.dropna(subset=["fecha", "flujo"])
+        df_flujos = df_flujos[df_flujos["fecha"] > hoy].sort_values("fecha")
+
+        if df_flujos.empty:
+            continue
+
+        fechas = [hoy] + list(df_flujos["fecha"])
+        cashflows = [-float(precio)] + list(df_flujos["flujo"].astype(float))
+
+        try:
+            tir = float(xirr_dates(fechas, cashflows, guess=0.10))
+        except Exception:
+            tir = np.nan
+
+        try:
+            tiempos = np.array([(f - hoy).days / 365.0 for f in df_flujos["fecha"]], dtype=float)
+            flujos = df_flujos["flujo"].astype(float).values
+            if pd.notna(tir):
+                pv = flujos / ((1.0 + tir) ** tiempos)
+                duration = float(np.sum(tiempos * pv) / np.sum(pv))
+            else:
+                duration = np.nan
+        except Exception:
+            duration = np.nan
+
+        vencimiento = df_flujos["fecha"].max()
+        años_al_vto = (vencimiento - hoy).days / 365.25
+
+        rows.append({
+            "bono": bono,
+            "symbol": symbol,
+            "tipo": "BOPREAL",
+            "bono_modelo": bono_modelo,
+            "precio": float(precio),
+            "vencimiento": vencimiento,
+            "años_al_vto": años_al_vto,
+            "tir": tir,
+            "duration": duration,
+        })
+
+    df_out = pd.DataFrame(rows)
+    if df_out.empty:
+        return df_out
+
+    orden = {"BPOA7": 0, "BPOB7": 1, "BPOC7": 2, "BPOD7": 3, "BPOA8": 4, "BPOB8": 5}
+    df_out["orden"] = df_out["bono"].map(orden).fillna(999)
+    df_out = df_out.sort_values(["orden", "duration"]).drop(columns=["orden"]).reset_index(drop=True)
+
+    return df_out
 
 @st.cache_data
 def cargar_corpos(path: Path, file_version: float) -> pd.DataFrame:
@@ -742,6 +848,54 @@ BOND_RULES = {
             (date(2046, 1, 9), 1/44), (date(2046, 7, 9), 1/44),
         ],
     },
+
+"BPO27": {
+    "full_name": "Bono para la Reconstrucción de una Argentina Libre Serie 1 5% 2027",
+    "currency": "USD",
+    "issue_date": date(2024, 1, 5),
+    "maturity": date(2027, 10, 31),
+    "frequency": 2,
+    "day_count": "30/360",
+    "min_denomination": 100.0,
+    "governing_law": "Argentina",
+    "tipo": "fixed",
+    "coupon_schedule": [
+        (date(2024, 1, 5), date(2027, 10, 31), 0.05000),
+    ],
+    "first_coupon_date": date(2024, 10, 31),
+    "coupon_dates": (
+        "10-31",
+        "04-30",
+    ),
+    "amortization_schedule": [
+        (date(2027, 4, 30), 0.50),
+        (date(2027, 10, 31), 0.50),
+    ],
+},
+
+"BPO28": {
+    "full_name": "Bono para la Reconstrucción de una Argentina Libre Serie 4 3% 2028",
+    "currency": "USD",
+    "issue_date": date(2025, 6, 24),
+    "maturity": date(2028, 10, 31),
+    "frequency": 2,
+    "day_count": "30/360",
+    "min_denomination": 100.0,
+    "governing_law": "Argentina",
+    "tipo": "fixed",
+    "coupon_schedule": [
+        (date(2025, 6, 24), date(2028, 10, 31), 0.03000),
+    ],
+    "first_coupon_date": date(2025, 10, 31),
+    "coupon_dates": (
+        "04-30",
+        "10-31",
+    ),
+    "amortization_schedule": [
+        (date(2028, 10, 31), 1.00),
+    ],
+},
+
 
     # ── E. TX26 – BONCER 2026 2.00% ────────────────────────────────────────
     "TX26": {
@@ -3590,6 +3744,111 @@ with tab_leg:
                     st.plotly_chart(fig_ny, use_container_width=True)
                 else:
                     st.info("No hay suficientes Globales para graficar.")
+
+
+        st.markdown("---")
+            st.subheader("BOPREAL USD")
+
+            if st.button("Refrescar BOPREAL USD", key="refresh_bopreales_leg"):
+                bopreales_usd_lista.clear()
+
+            df_bop = bopreales_usd_lista(precio_col=precio_base).copy()
+
+            if df_bop.empty:
+                st.info("No se encontraron BOPREAL USD en la API de bonos.")
+            else:
+                df_bop["precio"] = pd.to_numeric(df_bop["precio"], errors="coerce").round(2)
+                df_bop["años_al_vto"] = pd.to_numeric(df_bop["años_al_vto"], errors="coerce").round(2)
+                df_bop["tir"] = pd.to_numeric(df_bop["tir"], errors="coerce") * 100
+                df_bop["tir"] = df_bop["tir"].round(2)
+                df_bop["duration"] = pd.to_numeric(df_bop["duration"], errors="coerce").round(2)
+                df_bop["vencimiento"] = pd.to_datetime(df_bop["vencimiento"]).dt.strftime("%d-%m-%Y")
+
+                df_bop = df_bop.rename(columns={
+                    "bono": "Bono",
+                    "symbol": "Ticker",
+                    "tipo": "Tipo",
+                    "bono_modelo": "Modelo flujo",
+                    "precio": "Precio",
+                    "vencimiento": "Vencimiento",
+                    "años_al_vto": "Años al vto",
+                    "tir": "TIR (%)",
+                    "duration": "Duration (años)"
+                })
+
+                df_bop = df_bop[[
+                    "Bono",
+                    "Ticker",
+                    "Tipo",
+                    "Modelo flujo",
+                    "Precio",
+                    "Vencimiento",
+                    "Años al vto",
+                    "TIR (%)",
+                    "Duration (años)"
+                ]]
+
+                col_tabla_bop, col_graf_bop = st.columns([1.2, 1])
+
+                with col_tabla_bop:
+                    st.dataframe(
+                        df_bop,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                with col_graf_bop:
+                    st.markdown("### Curva BOPREAL USD")
+
+                    df_plot_bop = df_bop.dropna(subset=["Duration (años)", "TIR (%)"]).copy()
+                    df_plot_bop = df_plot_bop.sort_values("Duration (años)")
+
+                    if len(df_plot_bop) >= 2:
+                        x = df_plot_bop["Duration (años)"].astype(float).values
+                        y = df_plot_bop["TIR (%)"].astype(float).values
+
+                        fig_bop = go.Figure()
+
+                        fig_bop.add_trace(go.Scatter(
+                            x=x,
+                            y=y,
+                            mode="markers+text",
+                            text=df_plot_bop["Bono"],
+                            textposition="top center",
+                            name="BOPREAL"
+                        ))
+
+                        mask = x > 0
+                        x_reg = x[mask]
+                        y_reg = y[mask]
+
+                        if len(x_reg) >= 2:
+                            coef = np.polyfit(np.log(x_reg), y_reg, 1)
+                            a, b = coef
+
+                            x_line = np.linspace(x_reg.min(), x_reg.max(), 200)
+                            y_line = a * np.log(x_line) + b
+
+                            fig_bop.add_trace(go.Scatter(
+                                x=x_line,
+                                y=y_line,
+                                mode="lines",
+                                name="Regresión log",
+                                line=dict(dash="dash")
+                            ))
+
+                        fig_bop.update_layout(
+                            xaxis_title="Duration (años)",
+                            yaxis_title="TIR (%)",
+                            template="plotly_white",
+                            height=420,
+                            margin=dict(l=10, r=10, t=30, b=10),
+                            showlegend=False
+                        )
+
+                        st.plotly_chart(fig_bop, use_container_width=True)
+                    else:
+                        st.info("No hay suficientes BOPREAL para graficar.")
 
             st.markdown("---")
             st.subheader("Flujos del bono")

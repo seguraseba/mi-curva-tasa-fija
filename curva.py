@@ -4056,7 +4056,6 @@ with tab_leg:
             options=[
     "AL29", "AL30", "AL35", "AE38", "AL41",
     "GD29", "GD30", "GD35", "GD38", "GD41", "GD46",
-    "BPO27", "BPO28",
     "BPOA7", "BPOB7", "BPOC7", "BPOD7", "BPOA8", "BPOB8"],
             index=1,
             key="bono_flujos_soberano"

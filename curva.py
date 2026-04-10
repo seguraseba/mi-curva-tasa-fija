@@ -2162,30 +2162,24 @@ def completar_precio_dirty_desde_api(df_corpos: pd.DataFrame) -> pd.DataFrame:
     if col_dirty is not None and "c" in df.columns:
         df[col_dirty] = df["c"]
 
-    # opcional: guardar también variación/volumen si después los querés mostrar
+        # guardar columnas útiles de la API
     if "pct_change" in df.columns and "% Var API" not in df.columns:
         df["% Var API"] = df["pct_change"]
 
-    if "v" in df.columns and "Vol API" not in df.columns:
-        df["Vol API"] = df["v"]
+    if "v" in df.columns:
+        df["Volumen"] = pd.to_numeric(df["v"], errors="coerce")
 
-    # limpiar auxiliares técnicas, pero dejamos Ticker API MEP para validar
-    df = df.drop(
-        columns=[c for c in ["ticker_api_mep", "symbol", "c", "pct_change", "v"] if c in df.columns],
-        errors="ignore"
-    )
-
-    # limpiar columnas auxiliares y debug
+    
+        # limpiar auxiliares técnicas
     df = df.drop(
         columns=[
             c for c in [
                 "ticker_api_mep",
                 "Ticker API MEP",
                 "% Var API",
-                "Vol API",
                 "symbol",
                 "c",
-                 "pct_change",
+                "pct_change",
                 "v"
             ] if c in df.columns
         ],
@@ -4233,13 +4227,15 @@ with tab_corpos:
         # -------------------------
         # ORDEN DE COLUMNAS
         # -------------------------
+
         columnas_preferidas = [
             "Ticker",
             "Emisor",
             "Industria",
-            "Ley",
+            "Ley",   
             "Moneda Pago",
             "Precio Dirty (MEP)",
+            "Volumen",
             "Cupón",
             "Vencimiento",
             "Próx. Cupón",

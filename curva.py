@@ -2605,6 +2605,7 @@ def tir_esperada_cer_con_inflacion_plana(
     return rendimiento_bono.get("tir_esperada")
 
 
+
 def inflacion_implicita_par(
     ticker_fija: str,
     ticker_cer: str,
@@ -2626,6 +2627,19 @@ def inflacion_implicita_par(
     """
     ticker_fija = str(ticker_fija).strip().upper()
     ticker_cer = str(ticker_cer).strip().upper()
+
+    # ---- validaciones defensivas ----
+    if df_tf is None or not isinstance(df_tf, pd.DataFrame) or df_tf.empty:
+        return {"error": "df_tf vacío o no disponible."}
+
+    if "symbol" not in df_tf.columns:
+        return {"error": "df_tf no contiene la columna 'symbol'."}
+
+    if "TIR (%)" not in df_tf.columns:
+        return {"error": "df_tf no contiene la columna 'TIR (%)'."}
+
+    if "dias_a_vencimiento" not in df_tf.columns:
+        return {"error": "df_tf no contiene la columna 'dias_a_vencimiento'."}
 
     row_fija = df_tf[df_tf["symbol"].astype(str).str.upper() == ticker_fija]
     if row_fija.empty:
@@ -2691,29 +2705,18 @@ def inflacion_implicita_par(
                 a = m
                 f_low = fm
 
-            raiz = m
-
-    tir_cer_final = tir_esperada_cer_con_inflacion_plana(
-        symbol_cer=ticker_cer,
-        inflacion_mensual_pct=raiz,
-        fecha_cer_conocido=fecha_cer_conocido,
-        cer_conocido=cer_conocido,
-        fecha_emision_map=fecha_emision_map,
-        fecha_vencimiento_map=fecha_vencimiento_map,
-        cer_df=cer_df,
-        df_cer=df_cer,
-    )
+        if raiz is None:
+            raiz = (a + b) / 2
 
     return {
+        "error": None,
         "ticker_fija": ticker_fija,
         "ticker_cer": ticker_cer,
+        "dias": dias_fija,
         "tir_fija": float(tir_fija),
-        "tir_cer_eq": tir_cer_final,
-        "inflacion_implicita_mensual": raiz,
-        "dias": int(dias_fija) if pd.notna(dias_fija) else None,
-        "error": None,
+        "inflacion_implicita_mensual": float(raiz),
+        "tir_cer_eq": float(tir_fija),
     }
-
 
 # =========================
 # A3 / PRIMARY - FUTUROS DOLAR

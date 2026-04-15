@@ -356,6 +356,79 @@ def rendimiento_real_por_precio(precio: float, factor_cer: float) -> float | Non
     return (precio / factor_cer  - 1) * 100
 
 
+def tir_cer_con_cupon(symbol: str, precio_nominal: float, cer_df: pd.DataFrame, vn: float = 100.0):
+    """
+    Calcula la TIR REAL de bonos CER con cupón usando:
+    - flujos reales sobre saldo residual
+    - precio nominal convertido a real con CER
+    """
+
+    symbol = str(symbol).strip().upper()
+
+    if precio_nominal is None or pd.isna(precio_nominal):
+        return None
+
+    precio_nominal = float(precio_nominal)
+    if precio_nominal <= 0:
+        return None
+
+    # Solo para bonos CER con flujo completo
+    if symbol not in CER_ESPECIALES_CON_FLUJOS:
+        return None
+
+    # Traer coeficiente CER desde emisión hasta liquidación
+    cer_info = cer_coef_desde_emision(symbol, cer_df, FECHA_EMISION)
+    if cer_info.get("error"):
+        return None
+
+    cer_coef = cer_info.get("cer_coef")
+    if cer_coef is None or pd.isna(cer_coef) or float(cer_coef) <= 0:
+        return None
+
+    # Generar flujos reales
+    cf_df = generar_flujos_reales(symbol, vn=vn)
+    if cf_df is None or cf_df.empty:
+        return None
+
+    cf_df = cf_df.copy()
+    cf_df["fecha"] = pd.to_datetime(cf_df["fecha"], errors="coerce")
+    cf_df["flujo_real"] = pd.to_numeric(cf_df["flujo_real"], errors="coerce")
+    cf_df = cf_df.dropna(subset=["fecha", "flujo_real"])
+
+    hoy = pd.Timestamp.today().normalize()
+    cf_df = cf_df[cf_df["fecha"] > hoy].copy()
+
+    if cf_df.empty:
+        return None
+
+    # Pasar precio nominal a precio real
+    precio_real = precio_nominal / float(cer_coef)
+
+    fechas = [hoy] + cf_df["fecha"].tolist()
+    flujos = [-precio_real] + cf_df["flujo_real"].astype(float).tolist()
+
+    try:
+        tir = xirr_dates(fechas, flujos, guess=0.05)
+        return float(tir) * 100
+    except Exception:
+        return None
+
+
+def maturity_cer(symbol: str):
+    symbol = str(symbol).strip().upper()
+
+    if symbol not in FECHA_VENCIMIENTO:
+        return None
+
+    hoy = pd.Timestamp.today().normalize()
+    venc = pd.Timestamp(FECHA_VENCIMIENTO[symbol]).normalize()
+
+    dias = (venc - hoy).days
+    if dias <= 0:
+        return 0.0
+
+    return dias / 365.0
+
 from pandas.tseries.offsets import CustomBusinessDay
 
 feriados_arg = [
@@ -1269,6 +1342,26 @@ def soberanos_usd_lista():
     df = df.sort_values(["vencimiento", "bono"]).reset_index(drop=True)
     return df
 
+def bonos_cer_con_cupon_lista() -> pd.DataFrame:
+    datos = _fetch_json(URL_BONOS)
+
+    universe = [x for x in datos if x.get("symbol") in CER_ESPECIALES_CON_FLUJOS]
+    df = pd.DataFrame(universe)
+
+    if df.empty:
+        return df
+
+    df["symbol"] = df["symbol"].astype(str).str.upper().str.strip()
+    df["precio"] = pd.to_numeric(df["c"], errors="coerce")
+
+    df["tir_real"] = df.apply(
+        lambda row: tir_cer_con_cupon(row["symbol"], row["precio"], cer_df),
+        axis=1
+    )
+
+    df["maturity"] = df["symbol"].apply(maturity_cer)
+
+    return df[["symbol", "precio", "tir_real", "maturity"]].sort_values("maturity")
 
 
 def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):

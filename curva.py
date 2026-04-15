@@ -4450,6 +4450,13 @@ git push
 """
 
 
+"""
+git add corpos.xlsx
+git commit -m "Update CER file"
+git push
+
+"""
+
 #cd "C:\Users\msegu\OneDrive\Desktop\mi-curva-tasa-fija"
 """
 git add .

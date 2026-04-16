@@ -3381,7 +3381,7 @@ else:
 
         df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
         df_plot["maturity"] = df_plot["symbol"].astype(str).str.upper().str.strip().apply(maturity_cer)
-        df_plot = df_plot.dropna(subset=["maturity", "TIR CER (%)"])
+        df_plot = df_plot.dropna(subset=["maturity", tir_col, "symbol", "tipo", "c", "vencimiento"])
         df_plot = df_plot[df_plot["maturity"] > 0]
 
         if df_plot.empty:
@@ -3400,7 +3400,7 @@ else:
             for tipo in df_plot["tipo"].unique():
                 sub = df_plot[df_plot["tipo"] == tipo]
                 fig.add_trace(go.Scatter(
-                    x=sub["dias_a_vencimiento"],
+                    x=sub["maturity"],
                     y=sub[tir_col],
                     mode="markers",
                     name=tipo,
@@ -3408,7 +3408,7 @@ else:
                     text=sub["symbol"],
                     hovertemplate=(
                         "<b>%{text}</b><br><br>"
-                        "Días: %{x}<br>"
+                        "Maturity: %{x:.2f} años<br>"
                         "TIR CER: %{y:.2f}%<br>"
                         "Precio: %{customdata[0]:.2f}<br>"
                         "Vencimiento: %{customdata[1]}<extra></extra>"
@@ -3429,7 +3429,7 @@ else:
 
             fig.update_layout(
                 title="Curva TIR CER",
-                xaxis_title="Días a vencimiento",
+                xaxis_title="Maturity (años)",
                 yaxis_title="TIR CER (%)",
                 hovermode="closest",
                 template="plotly_white",

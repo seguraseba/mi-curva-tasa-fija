@@ -3380,7 +3380,7 @@ else:
         tir_col = "TIR CER cupón cero (%)"
 
         df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
-        df_plot["maturity"] = df_plot["Ticker"].apply(maturity_cer)
+        df_plot["maturity"] = df_plot["Ticker"].astype(str).str.upper().str.strip().apply(maturity_cer)
         df_plot = df_plot.dropna(subset=["maturity", "TIR CER (%)"])
         df_plot = df_plot[df_plot["maturity"] > 0]
 

@@ -3380,7 +3380,9 @@ else:
         tir_col = "TIR CER cupón cero (%)"
 
         df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
-        df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
+        df_plot["maturity"] = df_plot["Ticker"].apply(maturity_cer)
+        df_plot = df_plot.dropna(subset=["maturity", "TIR CER (%)"])
+        df_plot = df_plot[df_plot["maturity"] > 0]
 
         if df_plot.empty:
             st.info("No hay puntos CER con TIR y días a vencimiento.")

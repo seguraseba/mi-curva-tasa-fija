@@ -2903,7 +2903,7 @@ def cargar_futuros_dolar_snapshot():
 # MAIN APP (CON PESTAÑAS)
 # =========================
 
-st.title("Monitor de Renta Fija /")
+st.title("Monitor de Renta Fija ffffff")
 
 # --- Cargar universos (una sola vez) ---
 try:

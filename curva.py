@@ -500,7 +500,6 @@ BONOS_CER_TARGET = [
 ]
 
 FECHA_VENCIMIENTO = {
-    "TZXM6": date(2026, 3, 31),
     "TZX26": date(2026, 6, 30),
     "TX26":  date(2026, 11, 9),
     "TZXO6": date(2026, 10, 30),

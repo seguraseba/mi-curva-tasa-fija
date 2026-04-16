@@ -356,79 +356,6 @@ def rendimiento_real_por_precio(precio: float, factor_cer: float) -> float | Non
     return (precio / factor_cer  - 1) * 100
 
 
-def tir_cer_con_cupon(symbol: str, precio_nominal: float, cer_df: pd.DataFrame, vn: float = 100.0):
-    """
-    Calcula la TIR REAL de bonos CER con cupón usando:
-    - flujos reales sobre saldo residual
-    - precio nominal convertido a real con CER
-    """
-
-    symbol = str(symbol).strip().upper()
-
-    if precio_nominal is None or pd.isna(precio_nominal):
-        return None
-
-    precio_nominal = float(precio_nominal)
-    if precio_nominal <= 0:
-        return None
-
-    # Solo para bonos CER con flujo completo
-    if symbol not in CER_ESPECIALES_CON_FLUJOS:
-        return None
-
-    # Traer coeficiente CER desde emisión hasta liquidación
-    cer_info = cer_coef_desde_emision(symbol, cer_df, FECHA_EMISION)
-    if cer_info.get("error"):
-        return None
-
-    cer_coef = cer_info.get("cer_coef")
-    if cer_coef is None or pd.isna(cer_coef) or float(cer_coef) <= 0:
-        return None
-
-    # Generar flujos reales
-    cf_df = generar_flujos_reales(symbol, vn=vn)
-    if cf_df is None or cf_df.empty:
-        return None
-
-    cf_df = cf_df.copy()
-    cf_df["fecha"] = pd.to_datetime(cf_df["fecha"], errors="coerce")
-    cf_df["flujo_real"] = pd.to_numeric(cf_df["flujo_real"], errors="coerce")
-    cf_df = cf_df.dropna(subset=["fecha", "flujo_real"])
-
-    hoy = pd.Timestamp.today().normalize()
-    cf_df = cf_df[cf_df["fecha"] > hoy].copy()
-
-    if cf_df.empty:
-        return None
-
-    # Pasar precio nominal a precio real
-    precio_real = precio_nominal / float(cer_coef)
-
-    fechas = [hoy] + cf_df["fecha"].tolist()
-    flujos = [-precio_real] + cf_df["flujo_real"].astype(float).tolist()
-
-    try:
-        tir = xirr_dates(fechas, flujos, guess=0.05)
-        return float(tir) * 100
-    except Exception:
-        return None
-
-
-def maturity_cer(symbol: str):
-    symbol = str(symbol).strip().upper()
-
-    if symbol not in FECHA_VENCIMIENTO:
-        return None
-
-    hoy = pd.Timestamp.today().normalize()
-    venc = pd.Timestamp(FECHA_VENCIMIENTO[symbol]).normalize()
-
-    dias = (venc - hoy).days
-    if dias <= 0:
-        return 0.0
-
-    return dias / 365.0
-
 from pandas.tseries.offsets import CustomBusinessDay
 
 feriados_arg = [
@@ -1342,26 +1269,6 @@ def soberanos_usd_lista():
     df = df.sort_values(["vencimiento", "bono"]).reset_index(drop=True)
     return df
 
-def bonos_cer_con_cupon_lista() -> pd.DataFrame:
-    datos = _fetch_json(URL_BONOS)
-
-    universe = [x for x in datos if x.get("symbol") in CER_ESPECIALES_CON_FLUJOS]
-    df = pd.DataFrame(universe)
-
-    if df.empty:
-        return df
-
-    df["symbol"] = df["symbol"].astype(str).str.upper().str.strip()
-    df["precio"] = pd.to_numeric(df["c"], errors="coerce")
-
-    df["tir_real"] = df.apply(
-        lambda row: tir_cer_con_cupon(row["symbol"], row["precio"], cer_df),
-        axis=1
-    )
-
-    df["maturity"] = df["symbol"].apply(maturity_cer)
-
-    return df[["symbol", "precio", "tir_real", "maturity"]].sort_values("maturity")
 
 
 def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
@@ -1962,52 +1869,38 @@ def calcular_tna(row, pagos_finales: dict, base_dias=365):
       - dias_a_vencimiento
       - pago_final cargado manualmente por símbolo
     """
-    symbol = str(row.get("symbol", "")).strip().upper()
+    symbol = row["symbol"]
 
     if symbol not in pagos_finales:
         return None
 
-    try:
-        pago_final = float(pagos_finales[symbol])
-        precio = float(row.get("c"))
-        dias = int(row.get("dias_a_vencimiento"))
-    except Exception:
+    pago_final = pagos_finales[symbol]
+    precio = row["c"]
+    dias = row["dias_a_vencimiento"]
+
+    if precio is None or precio <= 0 or dias <= 0:
         return None
 
-    if pd.isna(pago_final) or pd.isna(precio) or pd.isna(dias):
-        return None
-
-    # evita división por cero en (dias - 1)
-    if precio <= 0 or pago_final <= 0 or dias <= 1:
-        return None
-
-    return ((pago_final / precio - 1) / (dias - 1) * base_dias) * 100
+    return ((pago_final / precio - 1) / (dias - 1) * base_dias ) * 100
 
 
 def calcular_tir(row, pagos_finales: dict, base_dias=365):
     """
     Calcula la TIR efectiva anual para una fila del df_all.
     """
-    symbol = str(row.get("symbol", "")).strip().upper()
+    symbol = row["symbol"]
 
     if symbol not in pagos_finales:
         return None
 
-    try:
-        pago_final = float(pagos_finales[symbol])
-        precio = float(row.get("c"))
-        dias = int(row.get("dias_a_vencimiento"))
-    except Exception:
+    pago_final = pagos_finales[symbol]
+    precio = row["c"]
+    dias = row["dias_a_vencimiento"]
+
+    if precio is None or precio <= 0 or dias is None or dias <= 0:
         return None
 
-    if pd.isna(pago_final) or pd.isna(precio) or pd.isna(dias):
-        return None
-
-    # evita división por cero en (dias - 1)
-    if precio <= 0 or pago_final <= 0 or dias <= 1:
-        return None
-
-    return ((pago_final / precio) ** (base_dias / (dias - 1)) - 1) * 100
+    return ((pago_final / precio) ** (base_dias / (dias-1)) - 1) * 100
 
 
 def calcular_tem_desde_tir(row):
@@ -3380,14 +3273,12 @@ else:
         tir_col = "TIR CER cupón cero (%)"
 
         df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
-        df_plot["maturity"] = df_plot["symbol"].astype(str).str.upper().str.strip().apply(maturity_cer)
-        df_plot = df_plot.dropna(subset=["maturity", tir_col, "symbol", "tipo", "c", "vencimiento"])
-        df_plot = df_plot[df_plot["maturity"] > 0]
+        df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
 
         if df_plot.empty:
             st.info("No hay puntos CER con TIR y días a vencimiento.")
         else:
-            x = df_plot["maturity"].astype(float).values
+            x = df_plot["dias_a_vencimiento"].astype(float).values
             y = pd.to_numeric(df_plot[tir_col], errors="coerce").astype(float).values
 
             a, b = np.polyfit(np.log(x), y, 1)
@@ -3400,7 +3291,7 @@ else:
             for tipo in df_plot["tipo"].unique():
                 sub = df_plot[df_plot["tipo"] == tipo]
                 fig.add_trace(go.Scatter(
-                    x=sub["maturity"],
+                    x=sub["dias_a_vencimiento"],
                     y=sub[tir_col],
                     mode="markers",
                     name=tipo,
@@ -3408,7 +3299,7 @@ else:
                     text=sub["symbol"],
                     hovertemplate=(
                         "<b>%{text}</b><br><br>"
-                        "Maturity: %{x:.2f} años<br>"
+                        "Días: %{x}<br>"
                         "TIR CER: %{y:.2f}%<br>"
                         "Precio: %{customdata[0]:.2f}<br>"
                         "Vencimiento: %{customdata[1]}<extra></extra>"
@@ -3429,7 +3320,7 @@ else:
 
             fig.update_layout(
                 title="Curva TIR CER",
-                xaxis_title="Maturity (años)",
+                xaxis_title="Días a vencimiento",
                 yaxis_title="TIR CER (%)",
                 hovermode="closest",
                 template="plotly_white",

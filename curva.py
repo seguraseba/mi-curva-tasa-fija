@@ -1962,38 +1962,52 @@ def calcular_tna(row, pagos_finales: dict, base_dias=365):
       - dias_a_vencimiento
       - pago_final cargado manualmente por símbolo
     """
-    symbol = row["symbol"]
+    symbol = str(row.get("symbol", "")).strip().upper()
 
     if symbol not in pagos_finales:
         return None
 
-    pago_final = pagos_finales[symbol]
-    precio = row["c"]
-    dias = row["dias_a_vencimiento"]
-
-    if precio is None or precio <= 0 or dias <= 0:
+    try:
+        pago_final = float(pagos_finales[symbol])
+        precio = float(row.get("c"))
+        dias = int(row.get("dias_a_vencimiento"))
+    except Exception:
         return None
 
-    return ((pago_final / precio - 1) / (dias - 1) * base_dias ) * 100
+    if pd.isna(pago_final) or pd.isna(precio) or pd.isna(dias):
+        return None
+
+    # evita división por cero en (dias - 1)
+    if precio <= 0 or pago_final <= 0 or dias <= 1:
+        return None
+
+    return ((pago_final / precio - 1) / (dias - 1) * base_dias) * 100
 
 
 def calcular_tir(row, pagos_finales: dict, base_dias=365):
     """
     Calcula la TIR efectiva anual para una fila del df_all.
     """
-    symbol = row["symbol"]
+    symbol = str(row.get("symbol", "")).strip().upper()
 
     if symbol not in pagos_finales:
         return None
 
-    pago_final = pagos_finales[symbol]
-    precio = row["c"]
-    dias = row["dias_a_vencimiento"]
-
-    if precio is None or precio <= 0 or dias is None or dias <= 0:
+    try:
+        pago_final = float(pagos_finales[symbol])
+        precio = float(row.get("c"))
+        dias = int(row.get("dias_a_vencimiento"))
+    except Exception:
         return None
 
-    return ((pago_final / precio) ** (base_dias / (dias-1)) - 1) * 100
+    if pd.isna(pago_final) or pd.isna(precio) or pd.isna(dias):
+        return None
+
+    # evita división por cero en (dias - 1)
+    if precio <= 0 or pago_final <= 0 or dias <= 1:
+        return None
+
+    return ((pago_final / precio) ** (base_dias / (dias - 1)) - 1) * 100
 
 
 def calcular_tem_desde_tir(row):
@@ -3371,7 +3385,7 @@ else:
         if df_plot.empty:
             st.info("No hay puntos CER con TIR y días a vencimiento.")
         else:
-            x = df_plot["dias_a_vencimiento"].astype(float).values
+            x = df_plot["maturity"].astype(float).values
             y = pd.to_numeric(df_plot[tir_col], errors="coerce").astype(float).values
 
             a, b = np.polyfit(np.log(x), y, 1)

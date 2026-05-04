@@ -464,7 +464,7 @@ PARES_INFLACION_IMPLICITA = [
 ]
 
 LETRAS_TARGET = [
-    "S30S6","S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S29Y6","S15Y6", "S31L6", "S31G6", "S30O6", "X29Y6","X15Y6", "X30N6", "X31L6","X30S6", "S14G6",
+    "S17L6",S30S6","S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S29Y6","S15Y6", "S31L6", "S31G6", "S30O6", "X29Y6","X15Y6", "X30N6", "X31L6","X30S6", "S14G6",
 ]
 
 BONOS_TARGET = [
@@ -477,6 +477,8 @@ BONOS_TARGET = [
 ]
 
 BONOS_CER_TARGET = [
+    "TZXS7",
+    "TZXS8",
     "TZX26",
     "TX26",
     "TZXO6",
@@ -500,6 +502,8 @@ BONOS_CER_TARGET = [
 ]
 
 FECHA_VENCIMIENTO = {
+    "TZXS7": date(2027, 9, 30),
+    "TZXS8": date(2028, 9, 29),
     "TZXM6": date(2026, 3, 31),
     "TZX26": date(2026, 6, 30),
     "TX26":  date(2026, 11, 9),
@@ -591,6 +595,7 @@ BONOS_CER_TARGET = BONOS_CER_TARGET[:]  # ya la tenés
 
 
 PAGOS_FINALES = {
+    "S17L6":107.92,
     "T30E6":142.22,
     "T13F6":144.97,
     "S27F6":125.84,
@@ -615,6 +620,8 @@ PAGOS_FINALES = {
 }
 
 FECHA_EMISION = {
+    "TZXS7": date(2026, 3, 31),
+    "TZXS8": date(2026, 3, 31),
     "TZXM6": date(2024, 4, 30),
     "TZX26": date(2024, 2, 1),
     "TX26":  date(2020, 9, 4),

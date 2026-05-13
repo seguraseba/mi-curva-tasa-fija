@@ -456,7 +456,6 @@ PARES_LEGISLACION = [
 # PARES INFLACION IMPLICITA
 # =========================
 PARES_INFLACION_IMPLICITA = [
-    {"ticker_fija": "S29Y6", "ticker_cer": "X29Y6", "par": "S29Y6 / X29Y6"},
     {"ticker_fija": "T30J6", "ticker_cer": "TZX26", "par": "T30J6 / TZX26"},
     {"ticker_fija": "S31L6", "ticker_cer": "X31L6", "par": "S31L6 / X31L6"},
     {"ticker_fija": "S30N6", "ticker_cer": "X30N6", "par": "S30N6 / X30N6"},
@@ -464,7 +463,7 @@ PARES_INFLACION_IMPLICITA = [
 ]
 
 LETRAS_TARGET = [
-    "S17L6","S30S6","S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S29Y6","S15Y6", "S31L6", "S31G6", "S30O6", "X29Y6","X15Y6", "X30N6", "X31L6","X30S6", "S14G6"
+    "S17L6","S30S6","S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S31L6", "S31G6", "S30O6", "X30N6", "X31L6","X30S6", "S14G6"
 ]
 
 BONOS_TARGET = [
@@ -599,10 +598,6 @@ PAGOS_FINALES = {
     "S27F6":125.84,
     "S16M6":104.62,
     "S30A6":127.49,
-    "X15Y6":107.981,
-    "X29Y6":118.096,
-    "S29Y6":132.04,
-    "S15Y6":105.18,
     "S31L6":117.68,
     "T30J6":144.90,
     "S31G6":127.06,

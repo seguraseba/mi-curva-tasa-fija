@@ -4338,8 +4338,8 @@ with tab_leg:
                     )
 
                     st.caption(
-                        "Upside calculado como variación porcentual del precio limpio al pasar de la TIR actual "
-                        "a cada exit yield objetivo. Precio invertido por bisección sobre los flujos reales del bono."
+                        "Upside calculado como variación porcentual del precio actual al pasar de la TIR correspondiente "
+                        "a cada exit yield objetivo."
                     )    
 
     except Exception as e:

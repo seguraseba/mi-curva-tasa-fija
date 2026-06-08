@@ -4273,7 +4273,7 @@ with tab_leg:
                         fila = {
                             "Bono": bono,
                             "Precio": round(precio_actual, 2),
-                            "TIR actual": f"{tir_actual * 100:.2f}%" if pd.notna(tir_actual) else "-",
+                            "TIR actual": f"{tir_actual * 100*100:.2f}%" if pd.notna(tir_actual) else "-",
                             "MD": round(duration, 2) if pd.notna(duration) else "-",
                         }
 

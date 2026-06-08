@@ -4253,13 +4253,6 @@ with tab_leg:
                             "duration": pd.to_numeric(row.get("duration"), errors="coerce"),
                         }
 
-                # Construir tabla
-                # FUERA del with st.spinner, antes de que empiece el loop
-                if "AL29" in bonos_sel:
-                    for px_test in [60, 55, 50, 45, 40, 30, 20, 10]:
-                        t = calcular_tir_soberano("AL29", float(px_test))
-                        st.write(f"AL29 px={px_test} → tir={t}")
-
                 with st.spinner("Calculando precios objetivo..."):
                     filas = []
 

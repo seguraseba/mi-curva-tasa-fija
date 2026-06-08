@@ -4256,11 +4256,9 @@ with tab_leg:
                 # Construir tabla
                 # FUERA del with st.spinner, antes de que empiece el loop
                 if "AL29" in bonos_sel:
-                    flujos_test = tabla_flujos_bono("AL29", vn=100.0)
-                    st.write(f"AL29 flujos: {len(flujos_test)} filas")
-                    st.write(flujos_test[["fecha", "flujo"]].head(10) if not flujos_test.empty else "VACÍO")
-                    tir_test = calcular_tir_soberano("AL29", 64.0)
-                    st.write(f"AL29 TIR a precio 64: {tir_test}")
+                    for px_test in [60, 55, 50, 45, 40, 30, 20, 10]:
+                        t = calcular_tir_soberano("AL29", float(px_test))
+                        st.write(f"AL29 px={px_test} → tir={t}")
 
                 with st.spinner("Calculando precios objetivo..."):
                     filas = []

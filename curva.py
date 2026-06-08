@@ -4164,44 +4164,44 @@ with tab_leg:
             else:
                 exit_yields = np.arange(tir_min, tir_max + tir_step * 0.01, tir_step) / 100.0
                 
+
                 def precio_a_tir_objetivo(symbol: str, tir_objetivo: float, vn: float = 100.0,
                                         tol: float = 1e-6, max_iter: int = 200) -> float | None:
-                    
+
                     def f(px):
-                        tir = calcular_tir_soberano(symbol, px, vn=vn)
+                        tir = calcular_tir_soberano(symbol, float(px), vn=vn)
                         if tir is None:
                             return None
                         return tir - tir_objetivo
 
-                    # Buscar intervalo válido automáticamente
-                    # Para bonos soberanos el precio razonable está entre 1 y 300
-                    low, high = 1.0, 300.0
-                    
-                    f_low = f(low)
-                    f_high = f(high)
-                    
-                    if f_low is None or f_high is None:
+                    # Buscar intervalo válido probando precios concretos en rango razonable
+                    # Para bonos soberanos ARG el precio razonable está entre 20 y 180
+                    candidatos = [20, 30, 40, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100,
+                                105, 110, 115, 120, 130, 140, 150, 160, 170, 180]
+
+                    resultados = []
+                    for px in candidatos:
+                        t = f(float(px))
+                        if t is not None:
+                            resultados.append((float(px), t))
+
+                    if len(resultados) < 2:
                         return None
-                    
-                    # Si no hay cambio de signo, intentar expandir el intervalo
-                    if f_low * f_high > 0:
-                        # Buscar punto donde cambia de signo probando precios intermedios
-                        for px_test in [5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250]:
-                            f_test = f(float(px_test))
-                            if f_test is None:
-                                continue
-                            if f_low * f_test < 0:
-                                high = float(px_test)
-                                f_high = f_test
-                                break
-                            elif f_high * f_test < 0:
-                                low = float(px_test)
-                                f_low = f_test
-                                break
-                        
-                        # Si todavía no hay cambio de signo, devolver None
-                        if f_low * f_high > 0:
-                            return None
+
+                    # Buscar par adyacente donde cambia de signo
+                    low, f_low = None, None
+                    high, f_high = None, None
+
+                    for i in range(len(resultados) - 1):
+                        px_a, fa = resultados[i]
+                        px_b, fb = resultados[i + 1]
+                        if fa * fb < 0:
+                            low, f_low = px_a, fa
+                            high, f_high = px_b, fb
+                            break
+
+                    if low is None:
+                        return None
 
                     for _ in range(max_iter):
                         mid = (low + high) / 2.0

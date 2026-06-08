@@ -4344,7 +4344,7 @@ with tab_leg:
                     )
 
                     st.caption(
-                        "Upside calculado como variación porcentual del precio al pasar de la TIR correspondiente "
+                        "Upside calculado como variación porcentual del precio al pasar de la TIR actual, "
                         "a cada exit yield objetivo."
                     )    
 

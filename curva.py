@@ -4249,7 +4249,7 @@ with tab_leg:
                         bono = str(row.get("bono", "")).upper()
                         precios_base[bono] = {
                             "precio": pd.to_numeric(row.get("precio"), errors="coerce"),
-                            "tir": pd.to_numeric(row.get("tir"), errors="coerce") / 100,  # viene en % → decimal
+                            "tir": pd.to_numeric(row.get("tir"), errors="coerce"),  # viene en % → decimal
                             "duration": pd.to_numeric(row.get("duration"), errors="coerce"),
                         }
 

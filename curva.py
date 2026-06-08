@@ -4103,6 +4103,211 @@ with tab_leg:
                 hide_index=True
             )
 
+            # =========================
+            # TABLA DE SENSIBILIDAD - EXIT YIELDS
+            # =========================
+            st.markdown("---")
+            st.markdown("## Tabla de sensibilidad — Upside por exit yield")
+
+            # --- Universo de bonos disponibles ---
+            BONOS_SENSIBILIDAD = [
+                # Bonares
+                "AL29", "AL30", "AL35", "AE38", "AL41",
+                # Globales
+                "GD29", "GD30", "GD35", "GD38", "GD41", "GD46",
+                # BOPREALes
+                "BPOA7", "BPOB7", "BPOC7", "BPOD7", "BPOA8", "BPOB8",
+            ]
+
+            col_s1, col_s2, col_s3 = st.columns([2, 1, 1])
+
+            with col_s1:
+                bonos_sel = st.multiselect(
+                    "Bonos a incluir",
+                    options=BONOS_SENSIBILIDAD,
+                    default=["AL30", "AL35", "AE38", "AL41", "GD30", "GD35"],
+                )
+
+            with col_s2:
+                tir_min = st.number_input("TIR mínima (%)", value=8.0, step=0.5, format="%.1f")
+                tir_max = st.number_input("TIR máxima (%)", value=15.0, step=0.5, format="%.1f")
+
+            with col_s3:
+                tir_step = st.number_input("Paso (%)", value=1.0, min_value=0.1, step=0.1, format="%.1f")
+                mostrar_como = st.radio("Mostrar como", ["Upside (%)", "Precio objetivo"], horizontal=False)
+
+            if not bonos_sel:
+                st.info("Seleccioná al menos un bono.")
+            else:
+                exit_yields = np.arange(tir_min, tir_max + tir_step * 0.01, tir_step) / 100.0
+
+                # Función: dado un bono y una TIR objetivo, encontrar precio limpio por bisección
+                def precio_a_tir_objetivo(symbol: str, tir_objetivo: float, vn: float = 100.0,
+                                        low: float = 0.5, high: float = 200.0,
+                                        tol: float = 1e-6, max_iter: int = 100) -> float | None:
+                    """
+                    Busca el precio limpio tal que calcular_tir_soberano(symbol, precio) == tir_objetivo.
+                    Usa bisección sobre el precio.
+                    """
+                    def f(px):
+                        tir = calcular_tir_soberano(symbol, px, vn=vn)
+                        if tir is None:
+                            return None
+                        return tir - tir_objetivo
+
+                    f_low = f(low)
+                    f_high = f(high)
+
+                    if f_low is None or f_high is None:
+                        return None
+
+                    # TIR y precio son inversamente proporcionales: si TIR sube, precio baja
+                    # Verificar que el intervalo contenga la raíz
+                    if f_low * f_high > 0:
+                        return None
+
+                    for _ in range(max_iter):
+                        mid = (low + high) / 2.0
+                        f_mid = f(mid)
+                        if f_mid is None:
+                            return None
+                        if abs(f_mid) < tol:
+                            return mid
+                        if f_low * f_mid < 0:
+                            high = mid
+                            f_high = f_mid
+                        else:
+                            low = mid
+                            f_low = f_mid
+
+                    return (low + high) / 2.0
+
+                # Obtener precios actuales y datos base desde df_sob (ya calculado arriba)
+                # Reconstruir df_sob si no está disponible en este scope
+                try:
+                    df_sob_sens = soberanos_usd_lista().copy()
+                except Exception:
+                    df_sob_sens = pd.DataFrame()
+
+                try:
+                    df_bop_sens = bopreales_usd_lista(precio_col=precio_base).copy()
+                except Exception:
+                    df_bop_sens = pd.DataFrame()
+
+                # Unificar en un dict: bono -> {precio, tir, duration}
+                precios_base = {}
+
+                if not df_sob_sens.empty:
+                    for _, row in df_sob_sens.iterrows():
+                        bono = str(row.get("bono", "")).upper()
+                        precios_base[bono] = {
+                            "precio": pd.to_numeric(row.get("precio"), errors="coerce"),
+                            "tir": pd.to_numeric(row.get("tir"), errors="coerce") / 100,  # viene en %
+                            "duration": pd.to_numeric(row.get("duration"), errors="coerce"),
+                        }
+
+                if not df_bop_sens.empty:
+                    for _, row in df_bop_sens.iterrows():
+                        bono = str(row.get("bono", "")).upper()
+                        precios_base[bono] = {
+                            "precio": pd.to_numeric(row.get("precio"), errors="coerce"),
+                            "tir": pd.to_numeric(row.get("tir"), errors="coerce") / 100,
+                            "duration": pd.to_numeric(row.get("duration"), errors="coerce"),
+                        }
+
+                # Construir tabla
+                with st.spinner("Calculando precios objetivo..."):
+                    filas = []
+
+                    for bono in bonos_sel:
+                        bono_modelo = bono_base_flujos(bono)
+                        datos = precios_base.get(bono, {})
+                        precio_actual = datos.get("precio")
+                        tir_actual = datos.get("tir")
+                        duration = datos.get("duration")
+
+                        if pd.isna(precio_actual) or precio_actual is None or precio_actual <= 0:
+                            continue
+
+                        fila = {
+                            "Bono": bono,
+                            "Precio": round(precio_actual, 2),
+                            "TIR actual": f"{tir_actual * 100:.2f}%" if pd.notna(tir_actual) else "-",
+                            "MD": round(duration, 2) if pd.notna(duration) else "-",
+                        }
+
+                        for ey in exit_yields:
+                            px_obj = precio_a_tir_objetivo(bono_modelo, ey)
+                            if px_obj is None or pd.isna(px_obj):
+                                if mostrar_como == "Upside (%)":
+                                    fila[f"{ey*100:.1f}%"] = None
+                                else:
+                                    fila[f"{ey*100:.1f}%"] = None
+                            else:
+                                if mostrar_como == "Upside (%)":
+                                    upside = (px_obj / precio_actual - 1) * 100
+                                    fila[f"{ey*100:.1f}%"] = round(upside, 2)
+                                else:
+                                    fila[f"{ey*100:.1f}%"] = round(px_obj, 2)
+
+                        filas.append(fila)
+
+                if not filas:
+                    st.warning("No se pudieron calcular datos para los bonos seleccionados.")
+                else:
+                    df_sens = pd.DataFrame(filas)
+                    tir_actual_actual = tir_actual  # para colorear
+
+                    # Columnas de exit yield (las numéricas)
+                    cols_ey = [f"{ey*100:.1f}%" for ey in exit_yields]
+                    cols_ey = [c for c in cols_ey if c in df_sens.columns]
+
+                    # Colormap: verde para positivo, rojo para negativo (si es upside)
+                    def color_celda_upside(val):
+                        try:
+                            if pd.isna(val):
+                                return ""
+                            v = float(val)
+                            if mostrar_como == "Upside (%)":
+                                if v > 15:
+                                    return "background-color: #1a7a1a; color: white; font-weight: 500"
+                                elif v > 8:
+                                    return "background-color: #4caf50; color: white; font-weight: 500"
+                                elif v > 2:
+                                    return "background-color: #a5d6a7; color: #1b5e20; font-weight: 500"
+                                elif v > -2:
+                                    return "background-color: #fff9c4; color: #795548; font-weight: 500"
+                                elif v > -8:
+                                    return "background-color: #ef9a9a; color: #b71c1c; font-weight: 500"
+                                else:
+                                    return "background-color: #c62828; color: white; font-weight: 500"
+                            return ""
+                        except Exception:
+                            return ""
+
+                    formato_cols = {c: "{:+.2f}%" if mostrar_como == "Upside (%)" else "{:.2f}" for c in cols_ey}
+                    formato_cols["Precio"] = "{:.2f}"
+
+                    styler = (
+                        df_sens.style
+                        .format(formato_cols, na_rep="-")
+                    )
+
+                    if mostrar_como == "Upside (%)" and cols_ey:
+                        styler = styler.map(color_celda_upside, subset=cols_ey)
+
+                    st.dataframe(
+                        styler,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=min(600, 60 + 45 * len(df_sens))
+                    )
+
+                    st.caption(
+                        "Upside calculado como variación porcentual del precio limpio al pasar de la TIR actual "
+                        "a cada exit yield objetivo. Precio invertido por bisección sobre los flujos reales del bono."
+                    )    
+
     except Exception as e:
         st.error(f"Error cargando soberanos USD: {e}")
 

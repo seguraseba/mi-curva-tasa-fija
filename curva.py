@@ -531,9 +531,6 @@ FECHA_VENCIMIENTO = {
 # =========================
 
 BOND_RULES = {
-    "AN29": {
-
-    },
     "TX26": {
         "coupon_real": 0.02,
         "freq": 2,              # semestral
@@ -4242,7 +4239,7 @@ with tab_leg:
                         bono = str(row.get("bono", "")).upper()
                         precios_base[bono] = {
                             "precio": pd.to_numeric(row.get("precio"), errors="coerce"),
-                            "tir": pd.to_numeric(row.get("tir"), errors="coerce") / 100,  # viene en % → decimal
+                            "tir": pd.to_numeric(row.get("tir"), errors="coerce"),  # viene en % → decimal
                             "duration": pd.to_numeric(row.get("duration"), errors="coerce"),
                         }
                     
@@ -4273,7 +4270,7 @@ with tab_leg:
                         fila = {
                             "Bono": bono,
                             "Precio": round(precio_actual, 2),
-                            "TIR actual": f"{tir_actual * 100*100:.2f}%" if pd.notna(tir_actual) else "-",
+                            "TIR actual": f"{tir_actual * 100:.2f}%" if pd.notna(tir_actual) else "-",
                             "MD": round(duration, 2) if pd.notna(duration) else "-",
                         }
 

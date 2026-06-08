@@ -4159,10 +4159,6 @@ with tab_leg:
                 tir_step = st.number_input("Paso (%)", value=1.0, min_value=0.1, step=0.1, format="%.1f")
                 mostrar_como = st.radio("Mostrar como", ["Upside (%)", "Precio objetivo"], horizontal=False)
 
-            st.caption(
-                "Las **exit yields** representan la TIR objetivo a la que querés vender el bono. "
-                "El upside muestra cuánto tendría que moverse el precio desde el actual para alcanzar esa TIR."
-            )
 
             if not bonos_sel:
                 st.info("Seleccioná al menos un bono.")
@@ -4348,7 +4344,7 @@ with tab_leg:
                     )
 
                     st.caption(
-                        "Upside calculado como variación porcentual del precio actual al pasar de la TIR correspondiente "
+                        "Upside calculado como variación porcentual del precio al pasar de la TIR correspondiente "
                         "a cada exit yield objetivo."
                     )    
 

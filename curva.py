@@ -531,6 +531,9 @@ FECHA_VENCIMIENTO = {
 # =========================
 
 BOND_RULES = {
+    "AN29": {
+
+    },
     "TX26": {
         "coupon_real": 0.02,
         "freq": 2,              # semestral
@@ -561,6 +564,9 @@ BOND_RULES = {
         "amort_last_n": 20,
         "daycount": "ACT/ACT",
     },
+
+
+
 
     # ── A. AL30 – Bono USD Step Up 2030 Ley Argentina ──────────────────────
     "AL30": {
@@ -593,6 +599,28 @@ BOND_RULES = {
              (date(2029, 1, 9), 0.08), (date(2029, 7, 9), 0.08),
              (date(2030, 1, 9), 0.08), (date(2030, 7, 9), 0.08)]
         ),
+    },
+
+
+    "AN29": {
+        "full_name": "Bono del Tesoro Nacional en Dólares Estadounidenses 6,50% Vto. 30/11/2029 (BONAR 2029N)",
+        "currency": "USD",
+        "issue_date": date(2025, 12, 12),
+        "maturity": date(2029, 11, 30),
+        "frequency": 2,                  # semestral
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "fixed",
+        "coupon_schedule": [
+            (date(2025, 12, 12), date(2029, 11, 30), 0.065),
+        ],
+        "first_coupon_date": date(2026, 5, 30),
+        "coupon_dates": ("05-30", "11-30"),   # 30 mayo y 30 noviembre
+        # Amortización bullet: 100% al vencimiento
+        "amortization_schedule": [
+            (date(2029, 11, 30), 1.00),
+        ],
     },
 
     # ── B. AL35 – Bono USD Step Up 2035 Ley Argentina ──────────────────────
@@ -1131,6 +1159,7 @@ SOBERANOS_API_MAP = {
     "AL35D": "AL35",
     "AE38D": "AE38",
     "AL41D": "AL41",
+    "AN29D": "AN29",
 
     # Globales
     "GD29D": "GD29",
@@ -4053,7 +4082,7 @@ with tab_leg:
         bono_sel = st.selectbox(
             "Seleccionar bono para ver flujos",
             options=[
-    "AL29", "AL30", "AL35", "AE38", "AL41",
+    "AL29", "AL30", "AL35", "AE38", "AL41", "AN29",
     "GD29", "GD30", "GD35", "GD38", "GD41", "GD46",
     "BPOA7", "BPOB7", "BPOC7", "BPOD7", "BPOA8", "BPOB8"],
             index=1,
@@ -4109,7 +4138,7 @@ with tab_leg:
             # --- Universo de bonos disponibles ---
             BONOS_SENSIBILIDAD = [
                 # Bonares
-                "AL29", "AL30", "AL35", "AE38", "AL41",
+                "AL29", "AL30", "AL35", "AE38", "AL41", "AN29",
                 # Globales
                 "GD29", "GD30", "GD35", "GD38", "GD41", "GD46",
                 # BOPREALes

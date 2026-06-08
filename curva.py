@@ -4251,6 +4251,12 @@ with tab_leg:
                         import streamlit as st
                         st.write(f"DEBUG {bono}: precio={precio_actual}, tir_test={calcular_tir_soberano(bono_modelo, precio_actual)}")
 
+                        # DEBUG BISECCIÓN
+                        for px_test in [30, 50, 70, 81, 100, 120]:
+                            tir_test = calcular_tir_soberano(bono_modelo, float(px_test))
+                            st.write(f"  {bono} px={px_test} → tir={tir_test}")
+                        
+                        
                         for ey in exit_yields:
                             px_obj = precio_a_tir_objetivo(bono_modelo, ey)  # ← sin / 100
                             if px_obj is None or pd.isna(px_obj):

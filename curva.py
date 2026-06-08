@@ -4137,31 +4137,45 @@ with tab_leg:
                 st.info("Seleccioná al menos un bono.")
             else:
                 exit_yields = np.arange(tir_min, tir_max + tir_step * 0.01, tir_step) / 100.0
-
-                # Función: dado un bono y una TIR objetivo, encontrar precio limpio por bisección
+                
                 def precio_a_tir_objetivo(symbol: str, tir_objetivo: float, vn: float = 100.0,
-                                        low: float = 0.5, high: float = 200.0,
-                                        tol: float = 1e-6, max_iter: int = 100) -> float | None:
-                    """
-                    Busca el precio limpio tal que calcular_tir_soberano(symbol, precio) == tir_objetivo.
-                    Usa bisección sobre el precio.
-                    """
+                                        tol: float = 1e-6, max_iter: int = 200) -> float | None:
+                    
                     def f(px):
                         tir = calcular_tir_soberano(symbol, px, vn=vn)
                         if tir is None:
                             return None
                         return tir - tir_objetivo
 
+                    # Buscar intervalo válido automáticamente
+                    # Para bonos soberanos el precio razonable está entre 1 y 300
+                    low, high = 1.0, 300.0
+                    
                     f_low = f(low)
                     f_high = f(high)
-
+                    
                     if f_low is None or f_high is None:
                         return None
-
-                    # TIR y precio son inversamente proporcionales: si TIR sube, precio baja
-                    # Verificar que el intervalo contenga la raíz
+                    
+                    # Si no hay cambio de signo, intentar expandir el intervalo
                     if f_low * f_high > 0:
-                        return None
+                        # Buscar punto donde cambia de signo probando precios intermedios
+                        for px_test in [5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250]:
+                            f_test = f(float(px_test))
+                            if f_test is None:
+                                continue
+                            if f_low * f_test < 0:
+                                high = float(px_test)
+                                f_high = f_test
+                                break
+                            elif f_high * f_test < 0:
+                                low = float(px_test)
+                                f_low = f_test
+                                break
+                        
+                        # Si todavía no hay cambio de signo, devolver None
+                        if f_low * f_high > 0:
+                            return None
 
                     for _ in range(max_iter):
                         mid = (low + high) / 2.0

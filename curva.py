@@ -4202,16 +4202,17 @@ with tab_leg:
                         bono = str(row.get("bono", "")).upper()
                         precios_base[bono] = {
                             "precio": pd.to_numeric(row.get("precio"), errors="coerce"),
-                            "tir": pd.to_numeric(row.get("tir"), errors="coerce") / 100,  # viene en %
+                            "tir": pd.to_numeric(row.get("tir"), errors="coerce"),  # ya viene en %
                             "duration": pd.to_numeric(row.get("duration"), errors="coerce"),
                         }
+                    
 
                 if not df_bop_sens.empty:
                     for _, row in df_bop_sens.iterrows():
                         bono = str(row.get("bono", "")).upper()
                         precios_base[bono] = {
                             "precio": pd.to_numeric(row.get("precio"), errors="coerce"),
-                            "tir": pd.to_numeric(row.get("tir"), errors="coerce") / 100,
+                            "tir": pd.to_numeric(row.get("tir"), errors="coerce"),  # ya viene en %
                             "duration": pd.to_numeric(row.get("duration"), errors="coerce"),
                         }
 
@@ -4232,23 +4233,23 @@ with tab_leg:
                         fila = {
                             "Bono": bono,
                             "Precio": round(precio_actual, 2),
-                            "TIR actual": f"{tir_actual * 100:.2f}%" if pd.notna(tir_actual) else "-",
+                            "TIR actual": f"{tir_actual:.2f}%" if pd.notna(tir_actual) else "-",
                             "MD": round(duration, 2) if pd.notna(duration) else "-",
                         }
 
+                        import streamlit as st
+                        st.write(f"DEBUG {bono}: precio={precio_actual}, tir_test={calcular_tir_soberano(bono_modelo, precio_actual)}")
+
                         for ey in exit_yields:
-                            px_obj = precio_a_tir_objetivo(bono_modelo, ey)
+                            px_obj = precio_a_tir_objetivo(bono_modelo, ey / 100)  # ← dividir acá, exit_yields está en % (ej: 10.0 → 0.10)
                             if px_obj is None or pd.isna(px_obj):
-                                if mostrar_como == "Upside (%)":
-                                    fila[f"{ey*100:.1f}%"] = None
-                                else:
-                                    fila[f"{ey*100:.1f}%"] = None
+                                fila[f"{ey:.1f}%"] = None
                             else:
                                 if mostrar_como == "Upside (%)":
                                     upside = (px_obj / precio_actual - 1) * 100
-                                    fila[f"{ey*100:.1f}%"] = round(upside, 2)
+                                    fila[f"{ey:.1f}%"] = round(upside, 2)
                                 else:
-                                    fila[f"{ey*100:.1f}%"] = round(px_obj, 2)
+                                    fila[f"{ey:.1f}%"] = round(px_obj, 2)
 
                         filas.append(fila)
 

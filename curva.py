@@ -4152,12 +4152,17 @@ with tab_leg:
                 )
 
             with col_s2:
-                tir_min = st.number_input("TIR mínima (%)", value=8.0, step=0.5, format="%.1f")
-                tir_max = st.number_input("TIR máxima (%)", value=15.0, step=0.5, format="%.1f")
+                tir_min = st.number_input("Exit yield mínima (%)", value=8.0, step=0.5, format="%.1f")
+                tir_max = st.number_input("Exit yield máxima (%)", value=15.0, step=0.5, format="%.1f")
 
             with col_s3:
                 tir_step = st.number_input("Paso (%)", value=1.0, min_value=0.1, step=0.1, format="%.1f")
                 mostrar_como = st.radio("Mostrar como", ["Upside (%)", "Precio objetivo"], horizontal=False)
+
+            st.caption(
+                "Las **exit yields** representan la TIR objetivo a la que querés vender el bono. "
+                "El upside muestra cuánto tendría que moverse el precio desde el actual para alcanzar esa TIR."
+            )
 
             if not bonos_sel:
                 st.info("Seleccioná al menos un bono.")

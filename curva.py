@@ -4274,6 +4274,12 @@ with tab_leg:
                             "MD": round(duration, 2) if pd.notna(duration) else "-",
                         }
 
+                        if bono == "AL29":
+                            for px_test in [30, 50, 64, 80, 100]:
+                                t = calcular_tir_soberano("AL29", float(px_test))
+                                flujos_test = tabla_flujos_bono("AL29", vn=100.0)
+                                st.write(f"AL29 px={px_test} → tir={t}, filas_flujos={len(flujos_test)}")
+
                         for ey in exit_yields:
                             px_obj = precio_a_tir_objetivo(bono_modelo, ey)  # ← sin / 100
                             if px_obj is None or pd.isna(px_obj):

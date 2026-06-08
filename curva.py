@@ -4298,8 +4298,13 @@ with tab_leg:
                     tir_actual_actual = tir_actual  # para colorear
 
                     # Columnas de exit yield (las numéricas)
-                    cols_ey = [f"{ey*100:.1f}%" for ey in exit_yields]
-                    cols_ey = [c for c in cols_ey if c in df_sens.columns]
+                    cols_ey_original = [f"{ey*100:.1f}%" for ey in exit_yields]
+                    cols_ey_original = [c for c in cols_ey_original if c in df_sens.columns]
+
+                    # Renombrar columnas para el display
+                    rename_ey = {c: f"EY {c}" for c in cols_ey_original}
+                    df_sens_display = df_sens.rename(columns=rename_ey)
+                    cols_ey = [f"EY {c}" for c in cols_ey_original]
 
                     # Colormap: verde para positivo, rojo para negativo (si es upside)
                     def color_celda_upside(val):
@@ -4328,7 +4333,7 @@ with tab_leg:
                     formato_cols["Precio"] = "{:.2f}"
 
                     styler = (
-                        df_sens.style
+                        df_sens_display.style
                         .format(formato_cols, na_rep="-")
                     )
 
@@ -4339,7 +4344,7 @@ with tab_leg:
                         styler,
                         use_container_width=True,
                         hide_index=True,
-                        height=min(600, 60 + 45 * len(df_sens))
+                        height=min(600, 60 + 45 * len(df_sens_display))
                     )
 
                     st.caption(

@@ -4254,6 +4254,14 @@ with tab_leg:
                         }
 
                 # Construir tabla
+                # FUERA del with st.spinner, antes de que empiece el loop
+                if "AL29" in bonos_sel:
+                    flujos_test = tabla_flujos_bono("AL29", vn=100.0)
+                    st.write(f"AL29 flujos: {len(flujos_test)} filas")
+                    st.write(flujos_test[["fecha", "flujo"]].head(10) if not flujos_test.empty else "VACÍO")
+                    tir_test = calcular_tir_soberano("AL29", 64.0)
+                    st.write(f"AL29 TIR a precio 64: {tir_test}")
+
                 with st.spinner("Calculando precios objetivo..."):
                     filas = []
 
@@ -4273,12 +4281,6 @@ with tab_leg:
                             "TIR actual": f"{tir_actual * 100:.2f}%" if pd.notna(tir_actual) else "-",
                             "MD": round(duration, 2) if pd.notna(duration) else "-",
                         }
-
-                        if bono == "AL29":
-                            for px_test in [30, 50, 64, 80, 100]:
-                                t = calcular_tir_soberano("AL29", float(px_test))
-                                flujos_test = tabla_flujos_bono("AL29", vn=100.0)
-                                st.write(f"AL29 px={px_test} → tir={t}, filas_flujos={len(flujos_test)}")
 
                         for ey in exit_yields:
                             px_obj = precio_a_tir_objetivo(bono_modelo, ey)  # ← sin / 100

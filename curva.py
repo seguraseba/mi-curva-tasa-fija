@@ -561,94 +561,6 @@ BOND_RULES = {
         "amort_last_n": 20,
         "daycount": "ACT/ACT",
     },
-}
-
-# =========================
-# PARP - CUPONES POR TRAMOS
-# =========================
-
-PARP_RULE = {
-    "freq": 2,
-    "amort_last_n": 20,
-    "daycount": "ACT/ACT",
-    "coupon_tramos": [
-        {"desde": date(2003,12,31), "hasta": date(2009,3,31),  "coupon": 0.0063},
-        {"desde": date(2009,3,31),  "hasta": date(2019,3,31),  "coupon": 0.0118},
-        {"desde": date(2019,3,31),  "hasta": date(2029,3,31),  "coupon": 0.0177},
-        {"desde": date(2029,3,31),  "hasta": date(2038,12,31), "coupon": 0.0248},
-    ]
-}
-
-
-# =========================
-# SEPARAR TARGETS: TASA FIJA vs CER
-# =========================
-
-# Tasa fija: excluye letras que empiezan con X
-LETRAS_TF_TARGET = [s for s in LETRAS_TARGET if not s.upper().startswith("X")]
-BONOS_TF_TARGET = BONOS_TARGET[:]  # igual que BONOS_TARGET
-
-# CER: letras que empiezan con X + bonos cer
-LETRAS_CER_TARGET = [s for s in LETRAS_TARGET if s.upper().startswith("X")]
-BONOS_CER_TARGET = BONOS_CER_TARGET[:]  # ya la tenés
-
-
-PAGOS_FINALES = {
-    "S17L6":107.92,
-    "T30E6":142.22,
-    "T13F6":144.97,
-    "S27F6":125.84,
-    "S16M6":104.62,
-    "S30A6":127.49,
-    "S31L6":117.68,
-    "T30J6":144.90,
-    "S31G6":127.06,
-    "S30S6":117.54,
-    "S30O6":135.28,
-    "T15E7":161.10,
-    "T30A7":157.34,
-    "S17A6":110.13,
-    "S30N6":129.89,
-    "T31Y7":151.56,
-    "T30J7":156.04,
-    "S14G6":108.03,
-}
-
-FECHA_EMISION = {
-    "TXMJ8": date(2026, 5, 15),
-    "TXMJ9": date(2026, 4, 30),
-    "TZXS7": date(2026, 3, 31),
-    "TZXS8": date(2026, 3, 31),
-    "TZXM6": date(2024, 4, 30),
-    "TZX26": date(2024, 2, 1),
-    "TX26":  date(2020, 9, 4),
-    "TZXO6": date(2024, 10, 31),
-    "TZXD6": date(2024, 3, 15),
-    "TZXM7": date(2024, 5, 20),
-    "TZXA7": date(2025, 11, 28),
-    "TZXY7": date(2025, 12, 15),
-    "TZX27": date(2024, 2, 1),
-    "TZXD7": date(2024, 3, 15),
-    "TZX28": date(2024, 2, 1),
-    "TX28":  date(2020, 9, 4),
-    "TX31":  date(2022, 5, 31),
-    "DICP":  date(2003, 12, 31),
-    "PARP":  date(2003, 12, 31),
-    "CUAP":  date(2003, 12, 31),
-    "X30S6": date(2026, 3, 16),
-    "X30N6": date(2025, 12, 15),
-    "X31L6": date(2026, 1, 30),
-}
-
-CER_ESPECIALES_CON_FLUJOS = {"DICP", "PARP", "CUAP", "TX26", "TX28", "TX31"}
-
-# =========================
-# HELPERS PARA API
-# =========================
-
-from datetime import date
-
-BOND_RULES = {
 
     # ── A. AL30 – Bono USD Step Up 2030 Ley Argentina ──────────────────────
     "AL30": {
@@ -1127,6 +1039,90 @@ BOND_RULES = {
     },
 }
 
+# =========================
+# PARP - CUPONES POR TRAMOS
+# =========================
+
+PARP_RULE = {
+    "freq": 2,
+    "amort_last_n": 20,
+    "daycount": "ACT/ACT",
+    "coupon_tramos": [
+        {"desde": date(2003,12,31), "hasta": date(2009,3,31),  "coupon": 0.0063},
+        {"desde": date(2009,3,31),  "hasta": date(2019,3,31),  "coupon": 0.0118},
+        {"desde": date(2019,3,31),  "hasta": date(2029,3,31),  "coupon": 0.0177},
+        {"desde": date(2029,3,31),  "hasta": date(2038,12,31), "coupon": 0.0248},
+    ]
+}
+
+
+# =========================
+# SEPARAR TARGETS: TASA FIJA vs CER
+# =========================
+
+# Tasa fija: excluye letras que empiezan con X
+LETRAS_TF_TARGET = [s for s in LETRAS_TARGET if not s.upper().startswith("X")]
+BONOS_TF_TARGET = BONOS_TARGET[:]  # igual que BONOS_TARGET
+
+# CER: letras que empiezan con X + bonos cer
+LETRAS_CER_TARGET = [s for s in LETRAS_TARGET if s.upper().startswith("X")]
+BONOS_CER_TARGET = BONOS_CER_TARGET[:]  # ya la tenés
+
+
+PAGOS_FINALES = {
+    "S17L6":107.92,
+    "T30E6":142.22,
+    "T13F6":144.97,
+    "S27F6":125.84,
+    "S16M6":104.62,
+    "S30A6":127.49,
+    "S31L6":117.68,
+    "T30J6":144.90,
+    "S31G6":127.06,
+    "S30S6":117.54,
+    "S30O6":135.28,
+    "T15E7":161.10,
+    "T30A7":157.34,
+    "S17A6":110.13,
+    "S30N6":129.89,
+    "T31Y7":151.56,
+    "T30J7":156.04,
+    "S14G6":108.03,
+}
+
+FECHA_EMISION = {
+    "TXMJ8": date(2026, 5, 15),
+    "TXMJ9": date(2026, 4, 30),
+    "TZXS7": date(2026, 3, 31),
+    "TZXS8": date(2026, 3, 31),
+    "TZXM6": date(2024, 4, 30),
+    "TZX26": date(2024, 2, 1),
+    "TX26":  date(2020, 9, 4),
+    "TZXO6": date(2024, 10, 31),
+    "TZXD6": date(2024, 3, 15),
+    "TZXM7": date(2024, 5, 20),
+    "TZXA7": date(2025, 11, 28),
+    "TZXY7": date(2025, 12, 15),
+    "TZX27": date(2024, 2, 1),
+    "TZXD7": date(2024, 3, 15),
+    "TZX28": date(2024, 2, 1),
+    "TX28":  date(2020, 9, 4),
+    "TX31":  date(2022, 5, 31),
+    "DICP":  date(2003, 12, 31),
+    "PARP":  date(2003, 12, 31),
+    "CUAP":  date(2003, 12, 31),
+    "X30S6": date(2026, 3, 16),
+    "X30N6": date(2025, 12, 15),
+    "X31L6": date(2026, 1, 30),
+}
+
+CER_ESPECIALES_CON_FLUJOS = {"DICP", "PARP", "CUAP", "TX26", "TX28", "TX31"}
+
+# =========================
+# HELPERS PARA API
+# =========================
+
+from datetime import date
 
 SOBERANOS_API_MAP = {
     # Bonares
@@ -1671,7 +1667,7 @@ def tir_real_por_flujos(symbol: str, precio_nominal: float, cer_liq: float | Non
 
     # Si no tenés cer_liq disponible todavía, podés devolver None.
     # (o setear cer_liq=1 para debug)
-    
+
     if cer_liq is None or pd.isna(cer_liq) or float(cer_liq) <= 0:
         return None
 

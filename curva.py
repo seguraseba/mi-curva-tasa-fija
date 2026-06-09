@@ -598,6 +598,54 @@ BOND_RULES = {
         ),
     },
 
+    "AO27": {
+        "full_name": "Bono del Tesoro Nacional en Dólares Estadounidenses Tasa Fija 6% Vto. 29/10/2027",
+        "currency": "USD",
+        "issue_date": date(2026, 2, 27),
+        "maturity": date(2027, 10, 29),
+        "frequency": 12,                  # mensual
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "fixed",
+        "coupon_schedule": [
+            (date(2026, 2, 27), date(2027, 10, 29), 0.06),
+        ],
+        "first_coupon_date": date(2026, 3, 31),
+        "coupon_dates": (
+            "01-31", "02-28", "03-31", "04-30", "05-31",
+            "06-30", "07-31", "08-31", "09-30", "10-31",
+            "11-30", "12-31",
+        ),
+        "amortization_schedule": [
+            (date(2027, 10, 29), 1.00),
+        ],
+    },
+
+    "AO28": {
+        "full_name": "Bono del Tesoro Nacional en Dólares Estadounidenses Tasa Fija 6% Vto. 31/10/2028",
+        "currency": "USD",
+        "issue_date": date(2026, 3, 31),
+        "maturity": date(2028, 10, 31),
+        "frequency": 12,                  # mensual
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "fixed",
+        "coupon_schedule": [
+            (date(2026, 3, 31), date(2028, 10, 31), 0.06),
+        ],
+        "first_coupon_date": date(2026, 4, 30),
+        "coupon_dates": (
+            "01-31", "02-28", "03-31", "04-30", "05-31",
+            "06-30", "07-31", "08-31", "09-30", "10-31",
+            "11-30", "12-31",
+        ),
+        # Bullet: 100% al vencimiento
+        "amortization_schedule": [
+            (date(2028, 10, 31), 1.00),
+        ],
+    },
 
     "AN29": {
         "full_name": "Bono del Tesoro Nacional en Dólares Estadounidenses 6,50% Vto. 30/11/2029 (BONAR 2029N)",
@@ -1031,7 +1079,6 @@ BOND_RULES = {
         ],
     },
 
-    # ── G. AL29 – Bono USD 1% 2029 Ley Argentina ───────────────────────────
     "AL29": {
         "full_name": "Bonos de la República Argentina en USD al 1% 2029 – Ley Argentina",
         "currency": "USD",
@@ -1151,6 +1198,8 @@ from datetime import date
 
 SOBERANOS_API_MAP = {
     # Bonares
+    "AO27D": "AO27",
+    "AO28D": "AO28",
     "AL29D": "AL29",
     "AL30D": "AL30",
     "AL35D": "AL35",
@@ -4079,7 +4128,7 @@ with tab_leg:
         bono_sel = st.selectbox(
             "Seleccionar bono para ver flujos",
             options=[
-    "AL29", "AL30", "AL35", "AE38", "AL41", "AN29",
+    "AL29", "AL30", "AL35", "AE38", "AL41", "AN29", "AO27", "AO28",
     "GD29", "GD30", "GD35", "GD38", "GD41", "GD46",
     "BPOA7", "BPOB7", "BPOC7", "BPOD7", "BPOA8", "BPOB8"],
             index=1,
@@ -4135,7 +4184,7 @@ with tab_leg:
             # --- Universo de bonos disponibles ---
             BONOS_SENSIBILIDAD = [
                 # Bonares
-                "AL29", "AL30", "AL35", "AE38", "AL41", "AN29",
+                "AL29", "AL30", "AL35", "AE38", "AL41", "AN29", "AO27", "AO28",
                 # Globales
                 "GD29", "GD30", "GD35", "GD38", "GD41", "GD46",
                 # BOPREALes
@@ -4148,7 +4197,7 @@ with tab_leg:
                 bonos_sel = st.multiselect(
                     "Bonos a incluir",
                     options=BONOS_SENSIBILIDAD,
-                    default=["AL30", "AL35", "AE38", "AL41", "GD30", "GD35"],
+                    default=["AL30", "AL35"],
                 )
 
             with col_s2:

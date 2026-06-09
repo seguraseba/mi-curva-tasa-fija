@@ -4220,8 +4220,7 @@ with tab_leg:
 
                     return (low + high) / 2.0
 
-                # Obtener precios actuales y datos base desde df_sob (ya calculado arriba)
-                # Reconstruir df_sob si no está disponible en este scope
+                # Obtener precios base desde API
                 try:
                     df_sob_sens = soberanos_usd_lista().copy()
                 except Exception:
@@ -4232,27 +4231,53 @@ with tab_leg:
                 except Exception:
                     df_bop_sens = pd.DataFrame()
 
-                # Unificar en un dict: bono -> {precio, tir, duration}
-                precios_base = {}
+                precios_api = {}
 
                 if not df_sob_sens.empty:
                     for _, row in df_sob_sens.iterrows():
                         bono = str(row.get("bono", "")).upper()
-                        precios_base[bono] = {
+                        precios_api[bono] = {
                             "precio": pd.to_numeric(row.get("precio"), errors="coerce"),
-                            "tir": pd.to_numeric(row.get("tir"), errors="coerce"),  # viene en % → decimal
+                            "tir": pd.to_numeric(row.get("tir"), errors="coerce"),
                             "duration": pd.to_numeric(row.get("duration"), errors="coerce"),
                         }
-                    
 
                 if not df_bop_sens.empty:
                     for _, row in df_bop_sens.iterrows():
                         bono = str(row.get("bono", "")).upper()
-                        precios_base[bono] = {
+                        precios_api[bono] = {
                             "precio": pd.to_numeric(row.get("precio"), errors="coerce"),
-                            "tir": pd.to_numeric(row.get("tir"), errors="coerce"),  # viene en % → decimal
+                            "tir": pd.to_numeric(row.get("tir"), errors="coerce"),
                             "duration": pd.to_numeric(row.get("duration"), errors="coerce"),
                         }
+
+                # Inputs manuales de precio por bono
+                if bonos_sel:
+                    st.markdown("**Precios de entrada** *(por defecto: precio de mercado actual)*")
+                    cols_precios = st.columns(min(len(bonos_sel), 4))
+                    precios_manuales = {}
+                    for i, bono in enumerate(bonos_sel):
+                        precio_api = precios_api.get(bono, {}).get("precio")
+                        precio_default = float(round(precio_api, 2)) if pd.notna(precio_api) and precio_api is not None else 0.0
+                        with cols_precios[i % 4]:
+                            precios_manuales[bono] = st.number_input(
+                                bono,
+                                value=precio_default,
+                                min_value=0.01,
+                                step=0.01,
+                                format="%.2f",
+                                key=f"px_manual_{bono}"
+                            )
+
+                # Unificar precios: usar manual si fue modificado, sino API
+                precios_base = {}
+                for bono in bonos_sel:
+                    datos_api = precios_api.get(bono, {})
+                    precios_base[bono] = {
+                        "precio": precios_manuales.get(bono, datos_api.get("precio")),
+                        "tir": datos_api.get("tir"),
+                        "duration": datos_api.get("duration"),
+                    }
 
                 with st.spinner("Calculando precios objetivo..."):
                     filas = []

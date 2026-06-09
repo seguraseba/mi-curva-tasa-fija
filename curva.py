@@ -463,7 +463,7 @@ PARES_INFLACION_IMPLICITA = [
 ]
 
 LETRAS_TARGET = [
-    "S17L6","S30S6","S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S31L6", "S31G6", "S30O6", "X30N6", "X31L6","X30S6", "S14G6"
+    "S17L6","S30S6","S15S6","S30N6", "S16E6", "S27F6","S16M6", "S17A6", "S30A6", "S31L6", "S31G6", "S30O6", "X30N6", "X31L6","X30S6", "S14G6"
 ]
 
 BONOS_TARGET = [
@@ -476,6 +476,8 @@ BONOS_TARGET = [
 ]
 
 BONOS_CER_TARGET = [
+    "TZXM8",
+    "TZXM9",
     "TXMJ8",
     "TXMJ9",
     "TZXS7",
@@ -501,9 +503,11 @@ BONOS_CER_TARGET = [
 ]
 
 FECHA_VENCIMIENTO = {
+    "TZXM8": date(2028, 3, 31),
+    "TZXM9": date(2029, 3, 28),
     "TXMJ8": date(2028, 6, 30),
     "TXMJ9": date(2029, 6, 29),
-    "TZXS7": date(2027, 9, 30),
+    "TZXS7": date(2027, 9, 30),  
     "TZXS8": date(2028, 9, 29),
     "TZXM6": date(2026, 3, 31),
     "TZX26": date(2026, 6, 30),
@@ -1152,6 +1156,7 @@ PAGOS_FINALES = {
     "T30J6":144.90,
     "S31G6":127.06,
     "S30S6":117.54,
+    "S15S6":107.21,
     "S30O6":135.28,
     "T15E7":161.10,
     "T30A7":157.34,
@@ -1163,6 +1168,8 @@ PAGOS_FINALES = {
 }
 
 FECHA_EMISION = {
+    "TZXM8": date(2026, 3, 31),
+    "TZXM9": date(2026, 3, 31),
     "TXMJ8": date(2026, 5, 15),
     "TXMJ9": date(2026, 4, 30),
     "TZXS7": date(2026, 3, 31),

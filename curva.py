@@ -3239,19 +3239,39 @@ else:
             fig = go.Figure()
 
             tipos = df_plot["tipo"].unique()
-            colores = {"LETRA": "blue", "BONO": "red"}
+            colores = {"LETRA": "#4fc3f7", "BONO": "#1565c0"}  # azul claro y azul oscuro
+
+            # Calcular distancia a la curva para resaltar outliers
+            df_plot = df_plot.copy()
+            df_plot["tir_curva"] = a * np.log(df_plot["dias_a_vencimiento"]) + b
+            df_plot["distancia_curva"] = df_plot[tasa_elegida] - df_plot["tir_curva"]
+
+            # El más barato (por encima de la curva) y el más caro (por debajo)
+            idx_barato = df_plot["distancia_curva"].idxmax()
+            idx_caro = df_plot["distancia_curva"].idxmin()
 
             for tipo in tipos:
                 sub = df_plot[df_plot["tipo"] == tipo]
                 fig.add_trace(go.Scatter(
                     x=sub["dias_a_vencimiento"],
                     y=sub[tasa_elegida],
-                    mode="markers",
+                    mode="markers+text",
                     name=tipo,
-                    marker=dict(size=10, opacity=0.8, color=colores.get(tipo, "gray")),
+                    marker=dict(
+                        size=10,
+                        opacity=0.85,
+                        color=colores.get(tipo, "#4fc3f7"),
+                        line=dict(
+                            width=[3 if idx in [idx_barato, idx_caro] else 0 for idx in sub.index],
+                            color=["#00e676" if idx == idx_barato else "#ff1744" if idx == idx_caro else "white"
+                                for idx in sub.index]
+                        )
+                    ),
                     text=sub["symbol"],
+                    textposition="top center",
+                    textfont=dict(size=10, color="white"),
                     hovertemplate=(
-                        "<b>%{text}</b><br><br>"
+                        "<b>%{text}</b><br>"
                         "Días: %{x}<br>"
                         f"{tasa_elegida}: %{{y:.2f}}%<br>"
                         "Precio: %{customdata[0]:.2f}<br>"
@@ -3268,15 +3288,28 @@ else:
                 y=y_line,
                 mode="lines",
                 name="Regresión logarítmica",
-                line=dict(color="purple", width=3, dash="dash")
+                line=dict(color="#29b6f6", width=2, dash="dash")  # azul medio
             ))
 
+            # Leyenda de outliers
+            ticker_barato = df_plot.loc[idx_barato, "symbol"]
+            ticker_caro = df_plot.loc[idx_caro, "symbol"]
+            dist_barato = df_plot.loc[idx_barato, "distancia_curva"]
+            dist_caro = df_plot.loc[idx_caro, "distancia_curva"]
+
             fig.update_layout(
-                title=f"Curva {tasa_elegida} (TF)",
+                title=dict(
+                    text=(
+                        f"Curva {tasa_elegida} (TF) — "
+                        f"<span style='color:#00e676'>Barato: {ticker_barato} (+{dist_barato:.2f}pp)</span>  "
+                        f"<span style='color:#ff1744'>Caro: {ticker_caro} ({dist_caro:.2f}pp)</span>"
+                    ),
+                    font=dict(size=13)
+                ),
                 xaxis_title="Días a vencimiento",
                 yaxis_title=tasa_elegida,
                 hovermode="closest",
-                template="plotly_white",
+                template="plotly_dark",
                 legend=dict(title="Tipo de instrumento")
             )
 

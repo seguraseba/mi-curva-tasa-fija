@@ -3194,7 +3194,7 @@ tab_curvas, tab_leg, tab_corpos, tab_cer_proj, tab_carry, tab_futuros = st.tabs(
     ["Curvas", "Soberanos/Bopreales", "Corporativos", "Proyección CER", "Carry Trade", "Futuros Dólar"]
 )
 # =========================
-# TAB 1: CURVAS (TU APP ACTUAL)
+# TAB 1: CURVAS (TU APP ACTUAL)   
 
 with tab_curvas:
     st.markdown("## Tasa fija")
@@ -3202,19 +3202,63 @@ with tab_curvas:
     if df_tf is None or df_tf.empty:
         st.warning("No se encontraron instrumentos tasa fija.")
     else:
+        # --- Fee selector ---
+        col_fee, _ = st.columns([1, 3])
+        with col_fee:
+            fee_pct = st.number_input(
+                "Fee / comisión (%)",
+                min_value=0.0,
+                max_value=5.0,
+                value=0.10,
+                step=0.01,
+                format="%.2f",
+                help="Se aplica sobre el precio de compra. Precio efectivo = Precio × (1 + fee%)"
+            )
+
+        # Aplicar fee al precio y recalcular tasas
+        df_tf_display = df_tf.copy()
+        df_tf_display["c_con_fee"] = df_tf_display["c"] * (1 + fee_pct / 100.0)
+
+        def calcular_tna_fee(row, pagos_finales, base_dias=365):
+            symbol = row["symbol"]
+            if symbol not in pagos_finales:
+                return None
+            pago_final = pagos_finales[symbol]
+            precio = row["c_con_fee"]
+            dias = row["dias_a_vencimiento"]
+            if precio is None or precio <= 0 or dias <= 0:
+                return None
+            return ((pago_final / precio - 1) / (dias - 1) * base_dias) * 100
+
+        def calcular_tir_fee(row, pagos_finales, base_dias=365):
+            symbol = row["symbol"]
+            if symbol not in pagos_finales:
+                return None
+            pago_final = pagos_finales[symbol]
+            precio = row["c_con_fee"]
+            dias = row["dias_a_vencimiento"]
+            if precio is None or precio <= 0 or dias is None or dias <= 0:
+                return None
+            return ((pago_final / precio) ** (base_dias / (dias - 1)) - 1) * 100
+
+        df_tf_display["TNA (%)"] = df_tf_display.apply(lambda row: calcular_tna_fee(row, PAGOS_FINALES), axis=1)
+        df_tf_display["TIR (%)"] = df_tf_display.apply(lambda row: calcular_tir_fee(row, PAGOS_FINALES), axis=1)
+        df_tf_display["TEM (%)"] = df_tf_display.apply(calcular_tem_desde_tir, axis=1)
+
         col_tf_tabla, col_tf_graf = st.columns([1.2, 1])
 
         # --- Tabla TF (izquierda) ---
         with col_tf_tabla:
             st.subheader("Tabla de instrumentos TASA FIJA")
 
+
             columnas_mostrar = [
-                "tipo", "symbol", "c",
+                "tipo", "symbol", "c", "c_con_fee",
                 "dias_a_vencimiento",
                 "TNA (%)", "TIR (%)", "TEM (%)"
             ]
 
-            df_display = df_tf[columnas_mostrar].copy()
+            df_display = df_tf_display[columnas_mostrar].copy()
 
             for col in ["c", "TNA (%)", "TIR (%)", "TEM (%)"]:
                 df_display[col] = pd.to_numeric(df_display[col], errors="coerce").round(2)
@@ -3223,10 +3267,12 @@ with tab_curvas:
                 df_display["dias_a_vencimiento"], errors="coerce"
             ).astype("Int64")
 
+
             df_display = df_display.rename(columns={
                 "tipo": "Tipo",
                 "symbol": "Ticker",
                 "c": "Precio",
+                "c_con_fee": "Precio c/fee",
                 "dias_a_vencimiento": "Días a vencimiento",
                 "TNA (%)": "TNA (%)",
                 "TIR (%)": "TIR (%)",

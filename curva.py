@@ -142,25 +142,6 @@ def bopreales_usd_lista(precio_col="c"):
         if df_flujos.empty:
             continue
 
-        fechas = [hoy] + list(df_flujos["fecha"])
-        cashflows = [-float(precio)] + list(df_flujos["flujo"].astype(float))
-
-        try:
-            tir = float(xirr_dates(fechas, cashflows, guess=0.10))
-        except Exception:
-            tir = np.nan
-
-        try:
-            tiempos = np.array([(f - hoy).days / 365.0 for f in df_flujos["fecha"]], dtype=float)
-            flujos = df_flujos["flujo"].astype(float).values
-            if pd.notna(tir):
-                pv = flujos / ((1.0 + tir) ** tiempos)
-                duration = float(np.sum(tiempos * pv) / np.sum(pv))
-            else:
-                duration = np.nan
-        except Exception:
-            duration = np.nan
-
         # Fechas de put por serie (próxima fecha de ejercicio desde hoy)
         PUT_FECHAS = {
             "BPOA7": pd.Timestamp("2025-04-30"),  # activo desde 30/04/2025

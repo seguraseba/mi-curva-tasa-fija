@@ -3220,257 +3220,257 @@ with tab_curvas:
                 height=height_tf
             )
 
-    # --- Gráfico TF (derecha) ---
-    with col_tf_graf:
-        tasa_elegida = st.selectbox("Tasa a graficar (TF):", ["TIR (%)", "TNA (%)", "TEM (%)"], index=0)
+        # --- Gráfico TF (derecha) ---
+        with col_tf_graf:
+            tasa_elegida = st.selectbox("Tasa a graficar (TF):", ["TIR (%)", "TNA (%)", "TEM (%)"], index=0)
 
-        df_plot = df_tf.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
-        df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
+            df_plot = df_tf.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
+            df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
 
-        if df_plot.empty:
-            st.info("No hay puntos suficientes para graficar tasa fija.")
-        else:
-            x = df_plot["dias_a_vencimiento"].values
-            y = df_plot[tasa_elegida].values
+            if df_plot.empty:
+                st.info("No hay puntos suficientes para graficar tasa fija.")
+            else:
+                x = df_plot["dias_a_vencimiento"].values
+                y = df_plot[tasa_elegida].values
 
-            a, b = np.polyfit(np.log(x), y, 1)
-            x_line = np.linspace(x.min(), x.max(), 300)
-            y_line = a * np.log(x_line) + b
+                a, b = np.polyfit(np.log(x), y, 1)
+                x_line = np.linspace(x.min(), x.max(), 300)
+                y_line = a * np.log(x_line) + b
 
-            fig = go.Figure()
+                fig = go.Figure()
 
-            tipos = df_plot["tipo"].unique()
-            colores = {"LETRA": "#4fc3f7", "BONO": "#1565c0"}  # azul claro y azul oscuro
+                tipos = df_plot["tipo"].unique()
+                colores = {"LETRA": "#4fc3f7", "BONO": "#1565c0"}  # azul claro y azul oscuro
 
-            # Calcular distancia a la curva para resaltar outliers
-            df_plot = df_plot.copy()
-            df_plot["tir_curva"] = a * np.log(df_plot["dias_a_vencimiento"]) + b
-            df_plot["distancia_curva"] = df_plot[tasa_elegida] - df_plot["tir_curva"]
+                # Calcular distancia a la curva para resaltar outliers
+                df_plot = df_plot.copy()
+                df_plot["tir_curva"] = a * np.log(df_plot["dias_a_vencimiento"]) + b
+                df_plot["distancia_curva"] = df_plot[tasa_elegida] - df_plot["tir_curva"]
 
-            # El más barato (por encima de la curva) y el más caro (por debajo)
-            idx_barato = df_plot["distancia_curva"].idxmax()
-            idx_caro = df_plot["distancia_curva"].idxmin()
+                # El más barato (por encima de la curva) y el más caro (por debajo)
+                idx_barato = df_plot["distancia_curva"].idxmax()
+                idx_caro = df_plot["distancia_curva"].idxmin()
 
-            for tipo in tipos:
-                sub = df_plot[df_plot["tipo"] == tipo]
+                for tipo in tipos:
+                    sub = df_plot[df_plot["tipo"] == tipo]
+                    fig.add_trace(go.Scatter(
+                        x=sub["dias_a_vencimiento"],
+                        y=sub[tasa_elegida],
+                        mode="markers+text",
+                        name=tipo,
+                        marker=dict(
+                            size=10,
+                            opacity=0.85,
+                            color=colores.get(tipo, "#4fc3f7"),
+                            line=dict(
+                                width=[3 if idx in [idx_barato, idx_caro] else 0 for idx in sub.index],
+                                color=["#00e676" if idx == idx_barato else "#ff1744" if idx == idx_caro else "white"
+                                    for idx in sub.index]
+                            )
+                        ),
+                        text=sub["symbol"],
+                        textposition="top center",
+                        textfont=dict(size=10, color="white"),
+                        hovertemplate=(
+                            "<b>%{text}</b><br>"
+                            "Días: %{x}<br>"
+                            f"{tasa_elegida}: %{{y:.2f}}%<br>"
+                            "Precio: %{customdata[0]:.2f}<br>"
+                            "Vencimiento: %{customdata[1]}<extra></extra>"
+                        ),
+                        customdata=np.stack([
+                            sub["c"].round(2),
+                            sub["vencimiento"].dt.strftime("%Y-%m-%d")
+                        ], axis=-1)
+                    ))
+
                 fig.add_trace(go.Scatter(
-                    x=sub["dias_a_vencimiento"],
-                    y=sub[tasa_elegida],
-                    mode="markers+text",
-                    name=tipo,
-                    marker=dict(
-                        size=10,
-                        opacity=0.85,
-                        color=colores.get(tipo, "#4fc3f7"),
-                        line=dict(
-                            width=[3 if idx in [idx_barato, idx_caro] else 0 for idx in sub.index],
-                            color=["#00e676" if idx == idx_barato else "#ff1744" if idx == idx_caro else "white"
-                                for idx in sub.index]
-                        )
-                    ),
-                    text=sub["symbol"],
-                    textposition="top center",
-                    textfont=dict(size=10, color="white"),
-                    hovertemplate=(
-                        "<b>%{text}</b><br>"
-                        "Días: %{x}<br>"
-                        f"{tasa_elegida}: %{{y:.2f}}%<br>"
-                        "Precio: %{customdata[0]:.2f}<br>"
-                        "Vencimiento: %{customdata[1]}<extra></extra>"
-                    ),
-                    customdata=np.stack([
-                        sub["c"].round(2),
-                        sub["vencimiento"].dt.strftime("%Y-%m-%d")
-                    ], axis=-1)
+                    x=x_line,
+                    y=y_line,
+                    mode="lines",
+                    name="Regresión logarítmica",
+                    line=dict(color="#29b6f6", width=2, dash="dash")  # azul medio
                 ))
 
-            fig.add_trace(go.Scatter(
-                x=x_line,
-                y=y_line,
-                mode="lines",
-                name="Regresión logarítmica",
-                line=dict(color="#29b6f6", width=2, dash="dash")  # azul medio
-            ))
+                # Leyenda de outliers
+                ticker_barato = df_plot.loc[idx_barato, "symbol"]
+                ticker_caro = df_plot.loc[idx_caro, "symbol"]
+                dist_barato = df_plot.loc[idx_barato, "distancia_curva"]
+                dist_caro = df_plot.loc[idx_caro, "distancia_curva"]
 
-            # Leyenda de outliers
-            ticker_barato = df_plot.loc[idx_barato, "symbol"]
-            ticker_caro = df_plot.loc[idx_caro, "symbol"]
-            dist_barato = df_plot.loc[idx_barato, "distancia_curva"]
-            dist_caro = df_plot.loc[idx_caro, "distancia_curva"]
-
-            fig.update_layout(
-                title=dict(
-                    text=(
-                        f"Curva {tasa_elegida} (TF) — "
-                        f"<span style='color:#00e676'>Barato: {ticker_barato} (+{dist_barato:.2f}pp)</span>  "
-                        f"<span style='color:#ff1744'>Caro: {ticker_caro} ({dist_caro:.2f}pp)</span>"
+                fig.update_layout(
+                    title=dict(
+                        text=(
+                            f"Curva {tasa_elegida} (TF) — "
+                            f"<span style='color:#00e676'>Barato: {ticker_barato} (+{dist_barato:.2f}pp)</span>  "
+                            f"<span style='color:#ff1744'>Caro: {ticker_caro} ({dist_caro:.2f}pp)</span>"
+                        ),
+                        font=dict(size=13)
                     ),
-                    font=dict(size=13)
-                ),
-                xaxis_title="Días a vencimiento",
-                yaxis_title=tasa_elegida,
-                hovermode="closest",
-                template="plotly_dark",
-                legend=dict(title="Tipo de instrumento")
+                    xaxis_title="Días a vencimiento",
+                    yaxis_title=tasa_elegida,
+                    hovermode="closest",
+                    template="plotly_dark",
+                    legend=dict(title="Tipo de instrumento")
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+
+    # =========================
+    # FILA 2: CER (cupón cero)
+    # =========================
+    st.markdown("## Bonos CER")
+
+    if df_cer is None or df_cer.empty:
+        st.info("No se encontraron instrumentos CER.")
+    else:
+        col_cer_tabla, col_cer_graf = st.columns([1.2, 1])
+
+        # --- Tabla CER (izquierda) ---
+        with col_cer_tabla:
+            st.subheader("Tabla instrumentos CER")
+
+            cols_cer = [
+                "tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento",
+                "TIR CER cupón cero (%)"
+            ]
+            cols_cer = [c for c in cols_cer if c in df_cer.columns]
+
+            df_cer_display = df_cer[cols_cer].copy()
+
+            if "c" in df_cer_display.columns:
+                df_cer_display["c"] = pd.to_numeric(df_cer_display["c"], errors="coerce").round(2)
+
+            if "TIR CER cupón cero (%)" in df_cer_display.columns:
+                df_cer_display["TIR CER cupón cero (%)"] = pd.to_numeric(
+                    df_cer_display["TIR CER cupón cero (%)"], errors="coerce"
+                ).round(4)
+
+            df_cer_display = df_cer_display.rename(columns={
+                "tipo": "Tipo",
+                "symbol": "Ticker",
+                "c": "Precio",
+                "v": "Volumen",
+                "pct_change": "% Var",
+                "dias_a_vencimiento": "Días a vencimiento",
+                "TIR CER cupón cero (%)": "TIR CER (%)",
+            })
+
+            row_height = 35
+            max_height = 650
+            height_cer = min(max_height, 40 + len(df_cer_display) * row_height)
+
+            styler_cer = df_cer_display.style.format({
+                "Precio": "{:,.2f}",
+                "Volumen": "{:,.0f}",
+                "% Var": "{:,.2f}",
+                "TIR CER (%)": "{:,.2f}"
+            })
+
+            if "Precio" in df_cer_display.columns:
+                styler_cer = styler_cer.map(color_precio, subset=["Precio"])
+
+            if "TIR CER (%)" in df_cer_display.columns:
+                styler_cer = styler_cer.map(color_tir, subset=["TIR CER (%)"])
+
+            st.dataframe(
+                styler_cer,
+                use_container_width=True,
+                height=height_cer
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+        # --- Gráfico CER (derecha) ---
+        with col_cer_graf:
+            tir_col = "TIR CER cupón cero (%)"
 
-# =========================
-# FILA 2: CER (cupón cero)
-# =========================
-st.markdown("## Bonos CER")
+            df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
+            df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
 
-if df_cer is None or df_cer.empty:
-    st.info("No se encontraron instrumentos CER.")
-else:
-    col_cer_tabla, col_cer_graf = st.columns([1.2, 1])
+            if df_plot.empty:
+                st.info("No hay puntos CER con TIR y días a vencimiento.")
+            else:
+                x = df_plot["dias_a_vencimiento"].astype(float).values
+                y = pd.to_numeric(df_plot[tir_col], errors="coerce").astype(float).values
 
-    # --- Tabla CER (izquierda) ---
-    with col_cer_tabla:
-        st.subheader("Tabla instrumentos CER")
+                a, b = np.polyfit(np.log(x), y, 1)
+                x_line = np.linspace(x.min(), x.max(), 300)
+                y_line = a * np.log(x_line) + b
 
-        cols_cer = [
-            "tipo", "symbol", "c", "v", "pct_change", "dias_a_vencimiento",
-            "TIR CER cupón cero (%)"
-        ]
-        cols_cer = [c for c in cols_cer if c in df_cer.columns]
+                fig = go.Figure()
 
-        df_cer_display = df_cer[cols_cer].copy()
+                colores = {"LETRA CER": "#4fc3f7", "BONO CER": "#1565c0"}
 
-        if "c" in df_cer_display.columns:
-            df_cer_display["c"] = pd.to_numeric(df_cer_display["c"], errors="coerce").round(2)
+                # Calcular distancia a la curva
+                df_plot = df_plot.copy()
+                df_plot["tir_curva"] = a * np.log(df_plot["dias_a_vencimiento"]) + b
+                df_plot["distancia_curva"] = pd.to_numeric(df_plot[tir_col], errors="coerce") - df_plot["tir_curva"]
 
-        if "TIR CER cupón cero (%)" in df_cer_display.columns:
-            df_cer_display["TIR CER cupón cero (%)"] = pd.to_numeric(
-                df_cer_display["TIR CER cupón cero (%)"], errors="coerce"
-            ).round(4)
+                idx_barato = df_plot["distancia_curva"].idxmax()
+                idx_caro = df_plot["distancia_curva"].idxmin()
 
-        df_cer_display = df_cer_display.rename(columns={
-            "tipo": "Tipo",
-            "symbol": "Ticker",
-            "c": "Precio",
-            "v": "Volumen",
-            "pct_change": "% Var",
-            "dias_a_vencimiento": "Días a vencimiento",
-            "TIR CER cupón cero (%)": "TIR CER (%)",
-        })
+                for tipo in df_plot["tipo"].unique():
+                    sub = df_plot[df_plot["tipo"] == tipo]
+                    fig.add_trace(go.Scatter(
+                        x=sub["dias_a_vencimiento"],
+                        y=sub[tir_col],
+                        mode="markers+text",
+                        name=tipo,
+                        marker=dict(
+                            size=10,
+                            opacity=0.85,
+                            color=colores.get(tipo, "#4fc3f7"),
+                            line=dict(
+                                width=[3 if idx in [idx_barato, idx_caro] else 0 for idx in sub.index],
+                                color=["#00e676" if idx == idx_barato else "#ff1744" if idx == idx_caro else "white"
+                                    for idx in sub.index]
+                            )
+                        ),
+                        text=sub["symbol"],
+                        textposition="top center",
+                        textfont=dict(size=10, color="white"),
+                        hovertemplate=(
+                            "<b>%{text}</b><br>"
+                            "Días: %{x}<br>"
+                            "TIR CER: %{y:.2f}%<br>"
+                            "Precio: %{customdata[0]:.2f}<br>"
+                            "Vencimiento: %{customdata[1]}<extra></extra>"
+                        ),
+                        customdata=np.stack([
+                            pd.to_numeric(sub["c"], errors="coerce").round(2),
+                            pd.to_datetime(sub["vencimiento"]).dt.strftime("%Y-%m-%d")
+                        ], axis=-1)
+                    ))
 
-        row_height = 35
-        max_height = 650
-        height_cer = min(max_height, 40 + len(df_cer_display) * row_height)
-
-        styler_cer = df_cer_display.style.format({
-            "Precio": "{:,.2f}",
-            "Volumen": "{:,.0f}",
-            "% Var": "{:,.2f}",
-            "TIR CER (%)": "{:,.2f}"
-        })
-
-        if "Precio" in df_cer_display.columns:
-            styler_cer = styler_cer.map(color_precio, subset=["Precio"])
-
-        if "TIR CER (%)" in df_cer_display.columns:
-            styler_cer = styler_cer.map(color_tir, subset=["TIR CER (%)"])
-
-        st.dataframe(
-            styler_cer,
-            use_container_width=True,
-            height=height_cer
-        )
-
-    # --- Gráfico CER (derecha) ---
-    with col_cer_graf:
-        tir_col = "TIR CER cupón cero (%)"
-
-        df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
-        df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
-
-        if df_plot.empty:
-            st.info("No hay puntos CER con TIR y días a vencimiento.")
-        else:
-            x = df_plot["dias_a_vencimiento"].astype(float).values
-            y = pd.to_numeric(df_plot[tir_col], errors="coerce").astype(float).values
-
-            a, b = np.polyfit(np.log(x), y, 1)
-            x_line = np.linspace(x.min(), x.max(), 300)
-            y_line = a * np.log(x_line) + b
-
-            fig = go.Figure()
-
-            colores = {"LETRA CER": "#4fc3f7", "BONO CER": "#1565c0"}
-
-            # Calcular distancia a la curva
-            df_plot = df_plot.copy()
-            df_plot["tir_curva"] = a * np.log(df_plot["dias_a_vencimiento"]) + b
-            df_plot["distancia_curva"] = pd.to_numeric(df_plot[tir_col], errors="coerce") - df_plot["tir_curva"]
-
-            idx_barato = df_plot["distancia_curva"].idxmax()
-            idx_caro = df_plot["distancia_curva"].idxmin()
-
-            for tipo in df_plot["tipo"].unique():
-                sub = df_plot[df_plot["tipo"] == tipo]
                 fig.add_trace(go.Scatter(
-                    x=sub["dias_a_vencimiento"],
-                    y=sub[tir_col],
-                    mode="markers+text",
-                    name=tipo,
-                    marker=dict(
-                        size=10,
-                        opacity=0.85,
-                        color=colores.get(tipo, "#4fc3f7"),
-                        line=dict(
-                            width=[3 if idx in [idx_barato, idx_caro] else 0 for idx in sub.index],
-                            color=["#00e676" if idx == idx_barato else "#ff1744" if idx == idx_caro else "white"
-                                for idx in sub.index]
-                        )
-                    ),
-                    text=sub["symbol"],
-                    textposition="top center",
-                    textfont=dict(size=10, color="white"),
-                    hovertemplate=(
-                        "<b>%{text}</b><br>"
-                        "Días: %{x}<br>"
-                        "TIR CER: %{y:.2f}%<br>"
-                        "Precio: %{customdata[0]:.2f}<br>"
-                        "Vencimiento: %{customdata[1]}<extra></extra>"
-                    ),
-                    customdata=np.stack([
-                        pd.to_numeric(sub["c"], errors="coerce").round(2),
-                        pd.to_datetime(sub["vencimiento"]).dt.strftime("%Y-%m-%d")
-                    ], axis=-1)
+                    x=x_line,
+                    y=y_line,
+                    mode="lines",
+                    name="Regresión logarítmica",
+                    line=dict(color="#29b6f6", width=2, dash="dash")
                 ))
 
-            fig.add_trace(go.Scatter(
-                x=x_line,
-                y=y_line,
-                mode="lines",
-                name="Regresión logarítmica",
-                line=dict(color="#29b6f6", width=2, dash="dash")
-            ))
+                ticker_barato = df_plot.loc[idx_barato, "symbol"]
+                ticker_caro = df_plot.loc[idx_caro, "symbol"]
+                dist_barato = df_plot.loc[idx_barato, "distancia_curva"]
+                dist_caro = df_plot.loc[idx_caro, "distancia_curva"]
 
-            ticker_barato = df_plot.loc[idx_barato, "symbol"]
-            ticker_caro = df_plot.loc[idx_caro, "symbol"]
-            dist_barato = df_plot.loc[idx_barato, "distancia_curva"]
-            dist_caro = df_plot.loc[idx_caro, "distancia_curva"]
-
-            fig.update_layout(
-                title=dict(
-                    text=(
-                        f"Curva TIR CER — "
-                        f"<span style='color:#00e676'>Barato: {ticker_barato} (+{dist_barato:.2f}pp)</span>  "
-                        f"<span style='color:#ff1744'>Caro: {ticker_caro} ({dist_caro:.2f}pp)</span>"
+                fig.update_layout(
+                    title=dict(
+                        text=(
+                            f"Curva TIR CER — "
+                            f"<span style='color:#00e676'>Barato: {ticker_barato} (+{dist_barato:.2f}pp)</span>  "
+                            f"<span style='color:#ff1744'>Caro: {ticker_caro} ({dist_caro:.2f}pp)</span>"
+                        ),
+                        font=dict(size=13)
                     ),
-                    font=dict(size=13)
-                ),
-                xaxis_title="Días a vencimiento",
-                yaxis_title="TIR CER (%)",
-                hovermode="closest",
-                template="plotly_dark",
-                legend=dict(title="Tipo de instrumento")
-            )
+                    xaxis_title="Días a vencimiento",
+                    yaxis_title="TIR CER (%)",
+                    hovermode="closest",
+                    template="plotly_dark",
+                    legend=dict(title="Tipo de instrumento")
+                )
 
-            st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True)
 
 # =========================
 # TAB: PROYECCION CER

@@ -3159,72 +3159,66 @@ tab_curvas, tab_leg, tab_corpos, tab_cer_proj, tab_carry, tab_futuros = st.tabs(
 )
 # =========================
 # TAB 1: CURVAS (TU APP ACTUAL)
-# =========================
+
 with tab_curvas:
-
-# --- Layout NUEVO: 2 filas, cada una con tabla (izq) + gráfico (der) ---
-
-# =========================
-# FILA 1: TASA FIJA
-# =========================
     st.markdown("## Tasa fija")
 
-if df_tf is None or df_tf.empty:
-    st.warning("No se encontraron instrumentos tasa fija.")
-else:
-    col_tf_tabla, col_tf_graf = st.columns([1.2, 1])
+    if df_tf is None or df_tf.empty:
+        st.warning("No se encontraron instrumentos tasa fija.")
+    else:
+        col_tf_tabla, col_tf_graf = st.columns([1.2, 1])
 
-    # --- Tabla TF (izquierda) ---
-    with col_tf_tabla:
-        st.subheader("Tabla de instrumentos TASA FIJA")
+        # --- Tabla TF (izquierda) ---
+        with col_tf_tabla:
+            st.subheader("Tabla de instrumentos TASA FIJA")
 
-        columnas_mostrar = [
-            "tipo", "symbol", "c",
-            "dias_a_vencimiento",
-            "TNA (%)", "TIR (%)", "TEM (%)"
-        ]
+            columnas_mostrar = [
+                "tipo", "symbol", "c",
+                "dias_a_vencimiento",
+                "TNA (%)", "TIR (%)", "TEM (%)"
+            ]
 
-        df_display = df_tf[columnas_mostrar].copy()
+            df_display = df_tf[columnas_mostrar].copy()
 
-        for col in ["c", "TNA (%)", "TIR (%)", "TEM (%)"]:
-            df_display[col] = pd.to_numeric(df_display[col], errors="coerce").round(2)
+            for col in ["c", "TNA (%)", "TIR (%)", "TEM (%)"]:
+                df_display[col] = pd.to_numeric(df_display[col], errors="coerce").round(2)
 
-        df_display["dias_a_vencimiento"] = pd.to_numeric(
-            df_display["dias_a_vencimiento"], errors="coerce"
-        ).astype("Int64")
+            df_display["dias_a_vencimiento"] = pd.to_numeric(
+                df_display["dias_a_vencimiento"], errors="coerce"
+            ).astype("Int64")
 
-        df_display = df_display.rename(columns={
-            "tipo": "Tipo",
-            "symbol": "Ticker",
-            "c": "Precio",
-            "dias_a_vencimiento": "Días a vencimiento",
-            "TNA (%)": "TNA (%)",
-            "TIR (%)": "TIR (%)",
-            "TEM (%)": "TEM (%)"
-        })
+            df_display = df_display.rename(columns={
+                "tipo": "Tipo",
+                "symbol": "Ticker",
+                "c": "Precio",
+                "dias_a_vencimiento": "Días a vencimiento",
+                "TNA (%)": "TNA (%)",
+                "TIR (%)": "TIR (%)",
+                "TEM (%)": "TEM (%)"
+            })
 
-        row_height = 35
-        max_height = 650
-        height_tf = min(max_height, 40 + len(df_display) * row_height)
+            row_height = 35
+            max_height = 650
+            height_tf = min(max_height, 40 + len(df_display) * row_height)
 
-        styler_tf = df_display.style.format({
-            "Precio": "{:,.2f}",
-            "TNA (%)": "{:,.2f}",
-            "TIR (%)": "{:,.2f}",
-            "TEM (%)": "{:,.2f}"
-        })
+            styler_tf = df_display.style.format({
+                "Precio": "{:,.2f}",
+                "TNA (%)": "{:,.2f}",
+                "TIR (%)": "{:,.2f}",
+                "TEM (%)": "{:,.2f}"
+            })
 
-        if "Precio" in df_display.columns:
-            styler_tf = styler_tf.map(color_precio, subset=["Precio"])
+            if "Precio" in df_display.columns:
+                styler_tf = styler_tf.map(color_precio, subset=["Precio"])
 
-        if "TIR (%)" in df_display.columns:
-            styler_tf = styler_tf.map(color_tir, subset=["TIR (%)"])
+            if "TIR (%)" in df_display.columns:
+                styler_tf = styler_tf.map(color_tir, subset=["TIR (%)"])
 
-        st.dataframe(
-            styler_tf,
-            use_container_width=True,
-            height=height_tf
-        )
+            st.dataframe(
+                styler_tf,
+                use_container_width=True,
+                height=height_tf
+            )
 
     # --- Gráfico TF (derecha) ---
     with col_tf_graf:

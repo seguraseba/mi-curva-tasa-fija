@@ -3285,6 +3285,7 @@ with tab_curvas:
 
             styler_tf = df_display.style.format({
                 "Precio": "{:,.2f}",
+                "Precio c/fee": "{:,.2f}",
                 "TNA (%)": "{:,.2f}",
                 "TIR (%)": "{:,.2f}",
                 "TEM (%)": "{:,.2f}"
@@ -3292,6 +3293,9 @@ with tab_curvas:
 
             if "Precio" in df_display.columns:
                 styler_tf = styler_tf.map(color_precio, subset=["Precio"])
+
+            if "Precio c/fee" in df_display.columns:
+                styler_tf = styler_tf.map(color_precio, subset=["Precio c/fee"])
 
             if "TIR (%)" in df_display.columns:
                 styler_tf = styler_tf.map(color_tir, subset=["TIR (%)"])
@@ -3306,7 +3310,7 @@ with tab_curvas:
         with col_tf_graf:
             tasa_elegida = st.selectbox("Tasa a graficar (TF):", ["TIR (%)", "TNA (%)", "TEM (%)"], index=0)
 
-            df_plot = df_tf.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
+            df_plot = df_tf_display.dropna(subset=["dias_a_vencimiento", tasa_elegida]).copy()
             df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
 
             if df_plot.empty:

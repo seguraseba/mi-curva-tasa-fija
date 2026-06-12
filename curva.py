@@ -70,6 +70,40 @@ def cargar_cer(path: Path, file_version: float) -> pd.DataFrame:
     )
     return df
 
+@st.cache_data(ttl=1800)
+def bcra_tamar_ultimo() -> dict:
+    try:
+        r = requests.get(
+            URL_BCRA,
+            params={"IdVariable": ID_TAMAR},
+            timeout=15,
+            verify=False
+        )
+        r.raise_for_status()
+        data = r.json()
+        resultado = data["results"][0]
+        return {
+            "valor": resultado["ultValorInformado"],
+            "fecha": resultado["ultFechaInformada"]
+        }
+    except Exception:
+        return {}
+
+@st.cache_data(ttl=3600)
+def bcra_tamar_historico(desde: str, hasta: str) -> pd.DataFrame:
+    try:
+        url = f"{URL_BCRA}/{ID_TAMAR}"
+        params = {"desde": desde, "hasta": hasta, "limit": 3000}
+        r = requests.get(url, params=params, timeout=15, verify=False)
+        r.raise_for_status()
+        data = r.json()
+        df = pd.DataFrame(data["results"])
+        df["fecha"] = pd.to_datetime(df["fecha"])
+        df["valor"] = pd.to_numeric(df["valor"], errors="coerce")
+        return df.sort_values("fecha")
+    except Exception:
+        return pd.DataFrame()
+
 @st.cache_data(ttl=60)
 def bopreales_usd_lista(precio_col="c"):
     bop_map = [
@@ -475,7 +509,8 @@ def vencimiento_desde_symbol(symbol: str, base_decade: int = 2020) -> date:
 URL_BONOS  = "https://data912.com/live/arg_bonds"
 URL_LETRAS = "https://data912.com/live/arg_notes"
 URL_ONS  = "https://data912.com/live/arg_corp"
-
+URL_BCRA = "https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias"
+ID_TAMAR = 40
 
 # =========================
 # PARES LEGISLACIÓN
@@ -3567,6 +3602,67 @@ with tab_curvas:
                 )
 
                 st.plotly_chart(fig, use_container_width=True)
+
+                # =========================
+                # TAMAR (BCRA)
+                # =========================
+                st.markdown("---")
+                st.markdown("## TAMAR")
+
+                tamar_hoy = bcra_tamar_ultimo()
+
+                if tamar_hoy:
+                    col_t1, col_t2, _ = st.columns([1, 1, 2])
+                    col_t1.metric(
+                        "TAMAR actual",
+                        f"{tamar_hoy['valor']:.2f}%"
+                    )
+                    col_t2.metric(
+                        "Última actualización",
+                        pd.to_datetime(tamar_hoy["fecha"]).strftime("%d/%m/%Y")
+                    )
+                else:
+                    st.warning("No se pudo obtener la TAMAR del BCRA.")
+
+                col_th1, col_th2 = st.columns(2)
+                with col_th1:
+                    tamar_desde = st.date_input(
+                        "Desde",
+                        value=pd.Timestamp.today().date() - pd.Timedelta(days=180),
+                        key="tamar_desde"
+                    )
+                with col_th2:
+                    tamar_hasta = st.date_input(
+                        "Hasta",
+                        value=pd.Timestamp.today().date(),
+                        key="tamar_hasta"
+                    )
+
+                df_tamar = bcra_tamar_historico(
+                    tamar_desde.strftime("%Y-%m-%d"),
+                    tamar_hasta.strftime("%Y-%m-%d")
+                )
+
+                if not df_tamar.empty:
+                    fig_tamar = go.Figure()
+                    fig_tamar.add_trace(go.Scatter(
+                        x=df_tamar["fecha"],
+                        y=df_tamar["valor"],
+                        mode="lines",
+                        name="TAMAR",
+                        line=dict(color="#29b6f6", width=2),
+                        hovertemplate="Fecha: %{x|%d-%m-%Y}<br>TAMAR: %{y:.2f}%<extra></extra>"
+                    ))
+                    fig_tamar.update_layout(
+                        title="Evolución TAMAR",
+                        xaxis_title="Fecha",
+                        yaxis_title="Tasa (%)",
+                        template="plotly_dark",
+                        hovermode="x unified",
+                    )
+                    st.plotly_chart(fig_tamar, use_container_width=True)
+                else:
+                    st.info("No hay datos de TAMAR para el período seleccionado.")
 
 # =========================
 # TAB: PROYECCION CER

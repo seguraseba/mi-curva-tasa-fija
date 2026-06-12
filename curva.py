@@ -71,11 +71,11 @@ def cargar_cer(path: Path, file_version: float) -> pd.DataFrame:
     return df
 
 @st.cache_data(ttl=1800)
-def bcra_tamar_ultimo() -> dict:
+def bcra_tamar_ultimo(id_variable: int = 44) -> dict:
     try:
         r = requests.get(
             URL_BCRA,
-            params={"IdVariable": ID_TAMAR},
+            params={"IdVariable": id_variable},
             timeout=15,
             verify=False
         )
@@ -90,9 +90,9 @@ def bcra_tamar_ultimo() -> dict:
         return {}
 
 @st.cache_data(ttl=3600)
-def bcra_tamar_historico(desde: str, hasta: str) -> pd.DataFrame:
+def bcra_tamar_historico(desde: str, hasta: str, id_variable: int = 44) -> pd.DataFrame:
     try:
-        url = f"{URL_BCRA}/{ID_TAMAR}"
+        url = f"{URL_BCRA}/{id_variable}"
         params = {"desde": desde, "hasta": hasta, "limit": 3000}
         r = requests.get(url, params=params, timeout=15, verify=False)
         r.raise_for_status()
@@ -510,7 +510,14 @@ URL_BONOS  = "https://data912.com/live/arg_bonds"
 URL_LETRAS = "https://data912.com/live/arg_notes"
 URL_ONS  = "https://data912.com/live/arg_corp"
 URL_BCRA = "https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias"
-ID_TAMAR = 44
+
+TAMAR_VARIABLES = {
+    "TAMAR Bancos Privados (TNA)": 44,
+    "TAMAR Bancos Privados (TNA mensual)": 45,
+    "TAMAR Bancos Públicos y Privados": 135,
+}
+ID_TAMAR = 44  # default
+
 
 # =========================
 # PARES LEGISLACIÓN
@@ -3628,6 +3635,16 @@ with tab_curvas:
 
                 tamar_hoy = bcra_tamar_ultimo()
 
+                tamar_label = st.selectbox(
+                    "Serie TAMAR",
+                    options=list(TAMAR_VARIABLES.keys()),
+                    index=0,
+                    key="tamar_serie"
+                )
+                ID_TAMAR_SEL = TAMAR_VARIABLES[tamar_label]
+
+                tamar_hoy = bcra_tamar_ultimo(ID_TAMAR_SEL)
+
                 if tamar_hoy:
                     col_t1, col_t2, _ = st.columns([1, 1, 2])
                     col_t1.metric(
@@ -3657,7 +3674,8 @@ with tab_curvas:
 
                 df_tamar = bcra_tamar_historico(
                     tamar_desde.strftime("%Y-%m-%d"),
-                    tamar_hasta.strftime("%Y-%m-%d")
+                    tamar_hasta.strftime("%Y-%m-%d"),
+                    id_variable=ID_TAMAR_SEL
                 )
 
                 if not df_tamar.empty:

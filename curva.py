@@ -512,6 +512,10 @@ BONOS_TARGET = [
 ]
 
 BONOS_CER_TARGET = [
+    "TXMD8",
+    "TXMD9",
+
+    "TXMJ0",
     "TZXM8",
     "TZXM9",
     "TXMJ8",
@@ -539,6 +543,9 @@ BONOS_CER_TARGET = [
 ]
 
 FECHA_VENCIMIENTO = {
+    "TXMD9": date(2029, 12, 14), 
+    "TXMD8": date(2028, 12, 15),
+    "TXMJ0": date(2030, 28, 6),
     "TZXM8": date(2028, 3, 31),
     "TZXM9": date(2029, 3, 28),
     "TXMJ8": date(2028, 6, 30),
@@ -1204,6 +1211,9 @@ PAGOS_FINALES = {
 }
 
 FECHA_EMISION = {
+    "TXMD9": date(2026, 6, 12), 
+    "TXMD8": date(2026, 6, 12),
+    "TXMJ0": date(2026, 6, 12),
     "TZXM8": date(2026, 3, 31),
     "TZXM9": date(2026, 3, 31),
     "TXMJ8": date(2026, 5, 15),

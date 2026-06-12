@@ -3200,7 +3200,7 @@ if "bonos_spread" not in st.session_state:
 # PESTAÑAS
 # =========================
 
-tab_curvas, tab_leg, tab_corpos, tab_cer_proj, tab_carry, tab_futuros = st.tabs(
+tab_curvas, tab_leg, tab_corpos, tab_cer_proj, tab_carry, tab_futuros, tab_fci = st.tabs(
     ["Curvas", "Soberanos/Bopreales", "Corporativos", "Proyección CER", "Carry Trade", "Futuros Dólar", "FCI"]
 )
 # =========================
@@ -3208,7 +3208,7 @@ tab_curvas, tab_leg, tab_corpos, tab_cer_proj, tab_carry, tab_futuros = st.tabs(
 
 with tab_curvas:
     st.markdown("## Tasa fija")
-c
+
     if df_tf is None or df_tf.empty:
         st.warning("No se encontraron instrumentos tasa fija.")
     else:
@@ -4925,7 +4925,6 @@ with tab_futuros:
 
     except Exception as e:
         st.error(f"Error cargando futuros A3: {e}")
-
 
 # =========================
 # TAB FCI

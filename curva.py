@@ -3603,6 +3603,23 @@ with tab_curvas:
 
                 st.plotly_chart(fig, use_container_width=True)
 
+                # DEBUG TEMPORAL — borrá después de encontrar el ID
+                if st.checkbox("Mostrar variables BCRA (debug)"):
+                    try:
+                        import urllib3
+                        urllib3.disable_warnings()
+                        r_vars = requests.get(
+                            URL_BCRA,
+                            params={"Limit": 500, "Offset": 0},
+                            timeout=15,
+                            verify=False
+                        )
+                        df_vars = pd.DataFrame(r_vars.json()["results"])
+                        tamar_rows = df_vars[df_vars["descripcion"].str.upper().str.contains("TAMAR", na=False)]
+                        st.dataframe(tamar_rows[["idVariable", "descripcion", "categoria", "ultValorInformado", "ultFechaInformada"]])
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
                 # =========================
                 # TAMAR (BCRA)
                 # =========================

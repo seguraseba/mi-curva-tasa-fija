@@ -3610,34 +3610,34 @@ with tab_curvas:
 
                 st.plotly_chart(fig, use_container_width=True)
 
-                    # =========================
-                    # TAMAR (BCRA)
-                    # =========================
-                    st.markdown("---")
-                    st.markdown("## TAMAR")
+                # =========================
+                # TAMAR (BCRA)
+                # =========================
+                st.markdown("---")
+                st.markdown("## TAMAR")
 
-                    tamar_label = st.selectbox(
-                        "Serie TAMAR",
-                        options=list(TAMAR_VARIABLES.keys()),
-                        index=0,
-                        key="tamar_serie"
+                tamar_label = st.selectbox(
+                    "Serie TAMAR",
+                    options=list(TAMAR_VARIABLES.keys()),
+                    index=0,
+                    key="tamar_serie"
+                )
+                ID_TAMAR_SEL = TAMAR_VARIABLES[tamar_label]
+
+                tamar_hoy = bcra_tamar_ultimo(ID_TAMAR_SEL)
+
+                if tamar_hoy:
+                    col_t1, col_t2, _ = st.columns([1, 1, 2])
+                    col_t1.metric(
+                        "TAMAR actual",
+                        f"{tamar_hoy['valor']:.2f}%"
                     )
-                    ID_TAMAR_SEL = TAMAR_VARIABLES[tamar_label]
-
-                    tamar_hoy = bcra_tamar_ultimo(ID_TAMAR_SEL)
-
-                    if tamar_hoy:
-                        col_t1, col_t2, _ = st.columns([1, 1, 2])
-                        col_t1.metric(
-                            "TAMAR actual",
-                            f"{tamar_hoy['valor']:.2f}%"
-                        )
-                        col_t2.metric(
-                            "Última actualización",
-                            pd.to_datetime(tamar_hoy["fecha"]).strftime("%d/%m/%Y")
-                        )
-                    else:
-                        st.warning("No se pudo obtener la TAMAR del BCRA.")
+                    col_t2.metric(
+                        "Última actualización",
+                        pd.to_datetime(tamar_hoy["fecha"]).strftime("%d/%m/%Y")
+                    )
+                else:
+                    st.warning("No se pudo obtener la TAMAR del BCRA.")
 
 
 # =========================

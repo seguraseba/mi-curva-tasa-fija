@@ -3627,50 +3627,35 @@ with tab_curvas:
                     except Exception as e:
                         st.error(f"Error: {e}")
 
-                # =========================
-                # TAMAR (BCRA)
-                # =========================
-                st.markdown("---")
-                st.markdown("## TAMAR")
+                    # =========================
+                    # TAMAR (BCRA)
+                    # =========================
+                    st.markdown("---")
+                    st.markdown("## TAMAR")
 
-                tamar_hoy = bcra_tamar_ultimo()
-
-                tamar_label = st.selectbox(
-                    "Serie TAMAR",
-                    options=list(TAMAR_VARIABLES.keys()),
-                    index=0,
-                    key="tamar_serie"
-                )
-                ID_TAMAR_SEL = TAMAR_VARIABLES[tamar_label]
-
-                tamar_hoy = bcra_tamar_ultimo(ID_TAMAR_SEL)
-
-                if tamar_hoy:
-                    col_t1, col_t2, _ = st.columns([1, 1, 2])
-                    col_t1.metric(
-                        "TAMAR actual",
-                        f"{tamar_hoy['valor']:.2f}%"
+                    tamar_label = st.selectbox(
+                        "Serie TAMAR",
+                        options=list(TAMAR_VARIABLES.keys()),
+                        index=0,
+                        key="tamar_serie"
                     )
-                    col_t2.metric(
-                        "Última actualización",
-                        pd.to_datetime(tamar_hoy["fecha"]).strftime("%d/%m/%Y")
-                    )
-                else:
-                    st.warning("No se pudo obtener la TAMAR del BCRA.")
+                    ID_TAMAR_SEL = TAMAR_VARIABLES[tamar_label]
 
-                col_th1, col_th2 = st.columns(2)
-                with col_th1:
-                    tamar_desde = st.date_input(
-                        "Desde",
-                        value=pd.Timestamp.today().date() - pd.Timedelta(days=180),
-                        key="tamar_desde"
-                    )
-                with col_th2:
-                    tamar_hasta = st.date_input(
-                        "Hasta",
-                        value=pd.Timestamp.today().date(),
-                        key="tamar_hasta"
-                    )
+                    tamar_hoy = bcra_tamar_ultimo(ID_TAMAR_SEL)
+
+                    if tamar_hoy:
+                        col_t1, col_t2, _ = st.columns([1, 1, 2])
+                        col_t1.metric(
+                            "TAMAR actual",
+                            f"{tamar_hoy['valor']:.2f}%"
+                        )
+                        col_t2.metric(
+                            "Última actualización",
+                            pd.to_datetime(tamar_hoy["fecha"]).strftime("%d/%m/%Y")
+                        )
+                    else:
+                        st.warning("No se pudo obtener la TAMAR del BCRA.")
+
 
 # =========================
 # TAB: PROYECCION CER

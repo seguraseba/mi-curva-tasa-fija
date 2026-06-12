@@ -545,7 +545,7 @@ BONOS_CER_TARGET = [
 FECHA_VENCIMIENTO = {
     "TXMD9": date(2029, 12, 14), 
     "TXMD8": date(2028, 12, 15),
-    "TXMJ0": date(2030, 28, 6),
+    "TXMJ0": date(2030, 6, 28),
     "TZXM8": date(2028, 3, 31),
     "TZXM9": date(2029, 3, 28),
     "TXMJ8": date(2028, 6, 30),

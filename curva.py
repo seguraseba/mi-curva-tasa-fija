@@ -510,7 +510,7 @@ URL_BONOS  = "https://data912.com/live/arg_bonds"
 URL_LETRAS = "https://data912.com/live/arg_notes"
 URL_ONS  = "https://data912.com/live/arg_corp"
 URL_BCRA = "https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias"
-ID_TAMAR = 40
+ID_TAMAR = 44
 
 # =========================
 # PARES LEGISLACIÓN

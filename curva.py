@@ -3672,33 +3672,6 @@ with tab_curvas:
                         key="tamar_hasta"
                     )
 
-                df_tamar = bcra_tamar_historico(
-                    tamar_desde.strftime("%Y-%m-%d"),
-                    tamar_hasta.strftime("%Y-%m-%d"),
-                    id_variable=ID_TAMAR_SEL
-                )
-
-                if not df_tamar.empty:
-                    fig_tamar = go.Figure()
-                    fig_tamar.add_trace(go.Scatter(
-                        x=df_tamar["fecha"],
-                        y=df_tamar["valor"],
-                        mode="lines",
-                        name="TAMAR",
-                        line=dict(color="#29b6f6", width=2),
-                        hovertemplate="Fecha: %{x|%d-%m-%Y}<br>TAMAR: %{y:.2f}%<extra></extra>"
-                    ))
-                    fig_tamar.update_layout(
-                        title="Evolución TAMAR",
-                        xaxis_title="Fecha",
-                        yaxis_title="Tasa (%)",
-                        template="plotly_dark",
-                        hovermode="x unified",
-                    )
-                    st.plotly_chart(fig_tamar, use_container_width=True)
-                else:
-                    st.info("No hay datos de TAMAR para el período seleccionado.")
-
 # =========================
 # TAB: PROYECCION CER
 # =========================

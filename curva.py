@@ -3147,30 +3147,38 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
 # BONOS CER CON CUPÓN — TIR real por flujos
 # =========================
 if df_cer is not None and not df_cer.empty and cer_df is not None:
+
+    fecha_liq = pd.Timestamp.today().normalize() + pd.Timedelta(days=1)
+    f_liq_m10 = fecha_liq - 10 * ARG_BDAY
+    cer_liq_global = cer_en_o_antes(cer_df, f_liq_m10)
+
     mask_especiales = (
         df_cer["tipo"].isin(["BONO CER", "LETRA CER"])
     ) & (
         df_cer["symbol"].astype(str).str.upper().isin(CER_ESPECIALES_CON_FLUJOS)
     )
 
-    def _calc_cer_liq_especial(row):
-        fecha_liq = pd.Timestamp.today().normalize() + pd.Timedelta(days=1)
-        f_liq_m10 = fecha_liq - 10 * ARG_BDAY
-        return cer_en_o_antes(cer_df, f_liq_m10)
+    if mask_especiales.any() and cer_liq_global is not None:
 
-    def _calc_tir_especial(row):
-        cer_liq = _calc_cer_liq_especial(row)
-        return tir_real_por_flujos(
-            row.get("symbol"),
-            row.get("c"),
-            cer_liq,
-            vn=100
+        # Asegurar que la columna existe
+        if "TIR CER cupón cero (%)" not in df_cer.columns:
+            df_cer["TIR CER cupón cero (%)"] = None
+
+        def _calc_tir_especial(row):
+            try:
+                return tir_real_por_flujos(
+                    str(row["symbol"]).strip().upper(),
+                    row["c"],
+                    cer_liq_global,
+                    vn=100
+                )
+            except Exception:
+                return None
+
+        df_cer.loc[mask_especiales, "TIR CER cupón cero (%)"] = (
+            df_cer.loc[mask_especiales].apply(_calc_tir_especial, axis=1).values
         )
-
-    df_cer.loc[mask_especiales, "TIR CER cupón cero (%)"] = df_cer.loc[mask_especiales].apply(
-        _calc_tir_especial, axis=1
-    )
-    df_cer.loc[mask_especiales, "tipo"] = "BONO CER c/cupón"
+        df_cer.loc[mask_especiales, "tipo"] = "BONO CER c/cupón"
 
 # =========================
 # TIR REAL CER POR FLUJOS (safe, no rompe la app)

@@ -3518,142 +3518,140 @@ with tab_curvas:
             )
 
 
-        with col_cer_graf:
-                    tir_col = "TIR CER cupón cero (%)"
+            with col_cer_graf:
+                        tir_col = "TIR CER cupón cero (%)"
 
-                    df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
-                    df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
+                        df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
+                        df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
 
-                    if df_plot.empty:
-                        st.info("No hay puntos CER con TIR y días a vencimiento.")
-                    else:
-                        # Separar en corto (≤365) y largo (>365)
-                        df_corto = df_plot[df_plot["dias_a_vencimiento"] <= 365].copy()
-                        df_largo = df_plot[df_plot["dias_a_vencimiento"] > 365].copy()
+                        if df_plot.empty:
+                            st.info("No hay puntos CER con TIR y días a vencimiento.")
+                        else:
+                            # Separar en corto (≤365) y largo (>365)
+                            df_corto = df_plot[df_plot["dias_a_vencimiento"] <= 365].copy()
+                            df_largo = df_plot[df_plot["dias_a_vencimiento"] > 365].copy()
 
-                        fig = go.Figure()
+                            fig = go.Figure()
 
-                        for df_tramo, label, color in [
-                            (df_corto, "≤ 1 año", "#4fc3f7"),
-                            (df_largo, "> 1 año", "#1565c0"),
-                        ]:
-                            if len(df_tramo) < 2:
-                                continue
+                            for df_tramo, label, color in [
+                                (df_corto, "≤ 1 año", "#4fc3f7"),
+                                (df_largo, "> 1 año", "#1565c0"),
+                            ]:
+                                if len(df_tramo) < 2:
+                                    continue
 
-                            x = df_tramo["dias_a_vencimiento"].astype(float).values
-                            y = pd.to_numeric(df_tramo[tir_col], errors="coerce").astype(float).values
+                                x = df_tramo["dias_a_vencimiento"].astype(float).values
+                                y = pd.to_numeric(df_tramo[tir_col], errors="coerce").astype(float).values
 
-                            # Regresión logarítmica del tramo
-                            mask = x > 0
-                            if mask.sum() >= 2:
-                                a, b = np.polyfit(np.log(x[mask]), y[mask], 1)
-                                x_line = np.linspace(x[mask].min(), x[mask].max(), 200)
-                                y_line = a * np.log(x_line) + b
+                                # Regresión logarítmica del tramo
+                                mask = x > 0
+                                if mask.sum() >= 2:
+                                    a, b = np.polyfit(np.log(x[mask]), y[mask], 1)
+                                    x_line = np.linspace(x[mask].min(), x[mask].max(), 200)
+                                    y_line = a * np.log(x_line) + b
+
+                                    fig.add_trace(go.Scatter(
+                                        x=x_line, y=y_line,
+                                        mode="lines",
+                                        name=f"Regresión {label}",
+                                        line=dict(color=color, width=2, dash="dash"),
+                                        showlegend=True
+                                    ))
+
+                                # Calcular outliers del tramo
+                                df_tramo = df_tramo.copy()
+                                if mask.sum() >= 2:
+                                    df_tramo["tir_curva"] = a * np.log(df_tramo["dias_a_vencimiento"]) + b
+                                    df_tramo["distancia_curva"] = pd.to_numeric(df_tramo[tir_col], errors="coerce") - df_tramo["tir_curva"]
+                                    idx_barato = df_tramo["distancia_curva"].idxmax()
+                                    idx_caro = df_tramo["distancia_curva"].idxmin()
+                                else:
+                                    idx_barato = None
+                                    idx_caro = None
 
                                 fig.add_trace(go.Scatter(
-                                    x=x_line, y=y_line,
-                                    mode="lines",
-                                    name=f"Regresión {label}",
-                                    line=dict(color=color, width=2, dash="dash"),
-                                    showlegend=True
+                                    x=df_tramo["dias_a_vencimiento"],
+                                    y=df_tramo[tir_col],
+                                    mode="markers+text",
+                                    name=label,
+                                    marker=dict(
+                                        size=10,
+                                        opacity=0.85,
+                                        color=color,
+                                        line=dict(
+                                            width=[3 if idx in [idx_barato, idx_caro] else 0
+                                                for idx in df_tramo.index],
+                                            color=["#00e676" if idx == idx_barato
+                                                else "#ff1744" if idx == idx_caro
+                                                else "white"
+                                                for idx in df_tramo.index]
+                                        )
+                                    ),
+                                    text=df_tramo["symbol"],
+                                    textposition="top center",
+                                    textfont=dict(size=10, color="white"),
+                                    hovertemplate=(
+                                        "<b>%{text}</b><br>"
+                                        "Días: %{x}<br>"
+                                        "TIR CER: %{y:.2f}%<br>"
+                                        "Precio: %{customdata[0]:.2f}<br>"
+                                        "Vencimiento: %{customdata[1]}<extra></extra>"
+                                    ),
+                                    customdata=np.stack([
+                                        pd.to_numeric(df_tramo["c"], errors="coerce").round(2),
+                                        pd.to_datetime(df_tramo["vencimiento"]).dt.strftime("%Y-%m-%d")
+                                    ], axis=-1)
                                 ))
 
-                            # Calcular outliers del tramo
-                            df_tramo = df_tramo.copy()
-                            if mask.sum() >= 2:
-                                df_tramo["tir_curva"] = a * np.log(df_tramo["dias_a_vencimiento"]) + b
-                                df_tramo["distancia_curva"] = pd.to_numeric(df_tramo[tir_col], errors="coerce") - df_tramo["tir_curva"]
-                                idx_barato = df_tramo["distancia_curva"].idxmax()
-                                idx_caro = df_tramo["distancia_curva"].idxmin()
+                            # Línea vertical en 365 días
+                            fig.add_vline(
+                                x=365,
+                                line_dash="dot",
+                                line_color="gray",
+                                annotation_text="1 año",
+                                annotation_position="top"
+                            )
+
+                            fig.update_layout(
+                                title="Curva TIR CER — corto y largo plazo",
+                                xaxis_title="Días a vencimiento",
+                                yaxis_title="TIR CER (%)",
+                                hovermode="closest",
+                                template="plotly_dark",
+                                legend=dict(title="Tramo")
+                            )
+
+                            st.plotly_chart(fig, use_container_width=True)                
+                            
+
+                            # =========================
+                            # TAMAR (BCRA)
+                            # =========================
+                            st.markdown("---")
+                            st.markdown("## TAMAR")
+
+                            tamar_label = st.selectbox(
+                                "Serie TAMAR",
+                                options=list(TAMAR_VARIABLES.keys()),
+                                index=0,
+                                key="tamar_serie"
+                            )
+                            ID_TAMAR_SEL = TAMAR_VARIABLES[tamar_label]
+
+                            tamar_hoy = bcra_tamar_ultimo(ID_TAMAR_SEL)
+
+                            if tamar_hoy:
+                                col_t1, col_t2, _ = st.columns([1, 1, 2])
+                                col_t1.metric(
+                                    "TAMAR actual",
+                                    f"{tamar_hoy['valor']:.2f}%"
+                                )
+                                col_t2.metric(
+                                    "Última actualización",
+                                    pd.to_datetime(tamar_hoy["fecha"]).strftime("%d/%m/%Y")
+                                )
                             else:
-                                idx_barato = None
-                                idx_caro = None
-
-                            fig.add_trace(go.Scatter(
-                                x=df_tramo["dias_a_vencimiento"],
-                                y=df_tramo[tir_col],
-                                mode="markers+text",
-                                name=label,
-                                marker=dict(
-                                    size=10,
-                                    opacity=0.85,
-                                    color=color,
-                                    line=dict(
-                                        width=[3 if idx in [idx_barato, idx_caro] else 0
-                                            for idx in df_tramo.index],
-                                        color=["#00e676" if idx == idx_barato
-                                            else "#ff1744" if idx == idx_caro
-                                            else "white"
-                                            for idx in df_tramo.index]
-                                    )
-                                ),
-                                text=df_tramo["symbol"],
-                                textposition="top center",
-                                textfont=dict(size=10, color="white"),
-                                hovertemplate=(
-                                    "<b>%{text}</b><br>"
-                                    "Días: %{x}<br>"
-                                    "TIR CER: %{y:.2f}%<br>"
-                                    "Precio: %{customdata[0]:.2f}<br>"
-                                    "Vencimiento: %{customdata[1]}<extra></extra>"
-                                ),
-                                customdata=np.stack([
-                                    pd.to_numeric(df_tramo["c"], errors="coerce").round(2),
-                                    pd.to_datetime(df_tramo["vencimiento"]).dt.strftime("%Y-%m-%d")
-                                ], axis=-1)
-                            ))
-
-                        # Línea vertical en 365 días
-                        fig.add_vline(
-                            x=365,
-                            line_dash="dot",
-                            line_color="gray",
-                            annotation_text="1 año",
-                            annotation_position="top"
-                        )
-
-                        fig.update_layout(
-                            title="Curva TIR CER — corto y largo plazo",
-                            xaxis_title="Días a vencimiento",
-                            yaxis_title="TIR CER (%)",
-                            hovermode="closest",
-                            template="plotly_dark",
-                            legend=dict(title="Tramo")
-                        )
-
-                        st.plotly_chart(fig, use_container_width=True)
-
-                # =========================
-                # TAMAR (BCRA)
-                # =========================
-                st.markdown("---")
-                st.markdown("## TAMAR")
-
-                tamar_label = st.selectbox(
-                    "Serie TAMAR",
-                    options=list(TAMAR_VARIABLES.keys()),
-                    index=0,
-                    key="tamar_serie"
-                )
-                ID_TAMAR_SEL = TAMAR_VARIABLES[tamar_label]
-
-                tamar_hoy = bcra_tamar_ultimo(ID_TAMAR_SEL)
-
-                if tamar_hoy:
-                    col_t1, col_t2, _ = st.columns([1, 1, 2])
-                    col_t1.metric(
-                        "TAMAR actual",
-                        f"{tamar_hoy['valor']:.2f}%"
-                    )
-                    col_t2.metric(
-                        "Última actualización",
-                        pd.to_datetime(tamar_hoy["fecha"]).strftime("%d/%m/%Y")
-                    )
-                else:
-                    st.warning("No se pudo obtener la TAMAR del BCRA.")
-
-
-
+                                st.warning("No se pudo obtener la TAMAR del BCRA.")
 
 
 # =========================

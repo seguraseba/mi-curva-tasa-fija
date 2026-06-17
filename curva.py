@@ -1817,14 +1817,11 @@ def xirr_dates(dates, cashflows, guess=0.05):
     return r
 
 
-def tir_real_por_flujos(symbol: str, precio_nominal: float, cer_liq: float | None, vn=100):
+def tir_real_por_flujos(symbol: str, precio_nominal: float, cer_liq: float | None, vn=100, cer_df_param=None):
     symbol = str(symbol).strip().upper()
 
     if precio_nominal is None or pd.isna(precio_nominal) or float(precio_nominal) <= 0:
         return None
-
-    # Si no tenés cer_liq disponible todavía, podés devolver None.
-    # (o setear cer_liq=1 para debug)
 
     if cer_liq is None or pd.isna(cer_liq) or float(cer_liq) <= 0:
         return None
@@ -1833,11 +1830,10 @@ def tir_real_por_flujos(symbol: str, precio_nominal: float, cer_liq: float | Non
     if cf_df is None or cf_df.empty:
         return None
 
-    # Asegurar tipos
     cf_df = cf_df.copy()
     cf_df["fecha"] = pd.to_datetime(cf_df["fecha"], errors="coerce")
     cf_df["flujo_real"] = pd.to_numeric(cf_df["flujo_real"], errors="coerce")
-    
+    cf_df = cf_df.dropna(subset=["fecha", "flujo_real"])
 
     # Filtrar solo flujos futuros
     hoy = pd.Timestamp.today().normalize()
@@ -1845,15 +1841,25 @@ def tir_real_por_flujos(symbol: str, precio_nominal: float, cer_liq: float | Non
     if cf_df.empty:
         return None
 
+    # El precio de mercado está en pesos nominales ajustados por CER.
+    # Para convertirlo a unidades reales comparables con los flujos reales
+    # necesitamos el CER de emisión para calcular el coeficiente CER acumulado.
+    cer_df_uso = cer_df_param if cer_df_param is not None else cer_df
 
+    if symbol not in FECHA_EMISION:
+        return None
 
-    # El precio nominal está en pesos, los flujos reales están en unidades CER de emisión
-    # Para comparar: precio_real = precio_nominal / cer_liq
-    # Pero cer_liq ya es el CER actual (liq-10), que es el correcto para convertir
-    # el precio de mercado a unidades reales comparables con los flujos
-    precio_real = float(precio_nominal) / float(cer_liq)
+    fecha_emis = pd.Timestamp(FECHA_EMISION[symbol]).normalize()
+    f_emis_m10 = fecha_emis - 10 * ARG_BDAY
+    cer_emis = cer_en_o_antes(cer_df_uso, f_emis_m10)
 
-    fechas = [pd.Timestamp.today().normalize()] + cf_df["fecha"].tolist()
+    if cer_emis is None or cer_emis <= 0:
+        return None
+
+    coef_cer = float(cer_liq) / float(cer_emis)
+    precio_real = float(precio_nominal) / coef_cer
+
+    fechas = [hoy] + cf_df["fecha"].tolist()
     flujos = [-precio_real] + cf_df["flujo_real"].astype(float).tolist()
 
     try:
@@ -3159,16 +3165,18 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
         if "TIR CER cupón cero (%)" not in df_cer.columns:
             df_cer["TIR CER cupón cero (%)"] = None
 
+
         def _calc_tir_especial(row):
-            try:
-                return tir_real_por_flujos(
-                    str(row["symbol"]).strip().upper(),
-                    row["c"],
-                    cer_liq_global,
-                    vn=100
-                )
-            except Exception:
-                return None
+                    try:
+                        return tir_real_por_flujos(
+                            str(row["symbol"]).strip().upper(),
+                            row["c"],
+                            cer_liq_global,
+                            vn=100,
+                            cer_df_param=cer_df
+                        )
+                    except Exception:
+                        return None
 
         tirs_especiales = df_cer.loc[mask_especiales].apply(_calc_tir_especial, axis=1)
         tirs_especiales = pd.to_numeric(tirs_especiales, errors="coerce")

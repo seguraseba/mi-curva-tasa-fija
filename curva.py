@@ -3160,7 +3160,6 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
 
     if mask_especiales.any() and cer_liq_global is not None:
 
-        # Asegurar que la columna existe
         if "TIR CER cupón cero (%)" not in df_cer.columns:
             df_cer["TIR CER cupón cero (%)"] = None
 
@@ -3175,24 +3174,23 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
             except Exception:
                 return None
 
-                
         tirs_especiales = df_cer.loc[mask_especiales].apply(_calc_tir_especial, axis=1)
         tirs_especiales = pd.to_numeric(tirs_especiales, errors="coerce")
         df_cer.loc[mask_especiales, "TIR CER cupón cero (%)"] = tirs_especiales.values
         df_cer.loc[mask_especiales, "tipo"] = "BONO CER c/cupón"
 
-# DEBUG TEMPORAL
-    if st.checkbox("Debug bonos CER c/cupón"):
-        for _, row in df_cer.loc[mask_especiales].iterrows():
-            sym = str(row["symbol"]).strip().upper()
-            precio = row["c"]
-            resultado = tir_real_por_flujos(sym, precio, cer_liq_global, vn=100)
-            cf_df = generar_flujos_reales(sym, vn=100)
-            st.write(f"**{sym}** — precio: {precio}, cer_liq: {cer_liq_global:.4f}, precio_real: {precio/cer_liq_global if cer_liq_global else 'N/A'}, TIR: {resultado}")
-            if cf_df is not None:
-                st.write(f"Flujos ({len(cf_df)} filas):", cf_df.head())
-            else:
-                st.write("❌ generar_flujos_reales devolvió None")
+        # DEBUG TEMPORAL — 8 espacios, dentro del if
+        if st.checkbox("Debug bonos CER c/cupón"):
+            for _, row in df_cer.loc[mask_especiales].iterrows():
+                sym = str(row["symbol"]).strip().upper()
+                precio = row["c"]
+                resultado = tir_real_por_flujos(sym, precio, cer_liq_global, vn=100)
+                cf_df = generar_flujos_reales(sym, vn=100)
+                st.write(f"**{sym}** — precio: {precio}, cer_liq: {cer_liq_global:.4f}, precio_real: {precio/cer_liq_global if cer_liq_global else 'N/A'}, TIR: {resultado}")
+                if cf_df is not None:
+                    st.write(f"Flujos ({len(cf_df)} filas):", cf_df.head())
+                else:
+                    st.write("❌ generar_flujos_reales devolvió None")
 
 # =========================
 # TIR REAL CER POR FLUJOS (safe, no rompe la app)

@@ -1837,12 +1837,20 @@ def tir_real_por_flujos(symbol: str, precio_nominal: float, cer_liq: float | Non
     cf_df = cf_df.copy()
     cf_df["fecha"] = pd.to_datetime(cf_df["fecha"], errors="coerce")
     cf_df["flujo_real"] = pd.to_numeric(cf_df["flujo_real"], errors="coerce")
+    
 
-    cf_df = cf_df.dropna(subset=["fecha", "flujo_real"])
+    # Filtrar solo flujos futuros
+    hoy = pd.Timestamp.today().normalize()
+    cf_df = cf_df[cf_df["fecha"] > hoy].copy()
     if cf_df.empty:
         return None
 
-    # Convertir precio a "real" para consistencia con flujos reales
+
+
+    # El precio nominal está en pesos, los flujos reales están en unidades CER de emisión
+    # Para comparar: precio_real = precio_nominal / cer_liq
+    # Pero cer_liq ya es el CER actual (liq-10), que es el correcto para convertir
+    # el precio de mercado a unidades reales comparables con los flujos
     precio_real = float(precio_nominal) / float(cer_liq)
 
     fechas = [pd.Timestamp.today().normalize()] + cf_df["fecha"].tolist()

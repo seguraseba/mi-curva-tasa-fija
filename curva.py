@@ -620,18 +620,6 @@ FECHA_VENCIMIENTO = {
 # =========================
 
 BOND_RULES = {
-    "TX26": {
-        "coupon_real": 0.02,
-        "freq": 2,              # semestral
-        "amort_last_n": 5,
-        "daycount": "ACT/ACT",
-    },
-    "TX28": {
-        "coupon_real": 0.0225,
-        "freq": 2,
-        "amort_last_n": 10,
-        "daycount": "ACT/ACT",
-    },
     "TX31": {
         "coupon_real": 0.025,
         "freq": 2,
@@ -1109,9 +1097,7 @@ BOND_RULES = {
 
 
 
-
-    # ── E. TX26 – BONCER 2026 2.00% ────────────────────────────────────────
-    "TX26": {
+"TX26": {
         "full_name": "Bonos del Tesoro Nacional en Pesos con Ajuste por CER 2,00% Vto. 2026",
         "currency": "ARS",
         "issue_date": date(2020, 9, 4),
@@ -1121,13 +1107,14 @@ BOND_RULES = {
         "min_denomination": 1.0,
         "governing_law": "Argentina",
         "tipo": "CER",
-        "coupon": 0.02,                  # tasa fija real sobre capital ajustado CER
+        "coupon": 0.02,
+        "coupon_real": 0.02,        # ← agregar
+        "freq": 2,                   # ← agregar
+        "amort_last_n": 5,           # ← agregar
         "cer_adjusted": True,
-        # CER: t-10 hábiles desde emisión hasta t-10 hábiles antes de cada vencimiento
         "cer_lag_business_days": 10,
         "first_coupon_date": date(2021, 5, 9),
-        "coupon_dates": ("05-09", "11-09"),   # mayo y noviembre
-        # 5 cuotas semestrales iguales (20%) desde 09/11/2024 hasta 09/11/2026
+        "coupon_dates": ("05-09", "11-09"),
         "amortization_schedule": [
             (date(2024, 11, 9), 0.20),
             (date(2025, 5,  9), 0.20),
@@ -1137,8 +1124,7 @@ BOND_RULES = {
         ],
     },
 
-    # ── F. TX28 – BONCER 2028 2.25% ────────────────────────────────────────
-    "TX28": {
+"TX28": {
         "full_name": "Bonos del Tesoro Nacional en Pesos con Ajuste por CER 2,25% Vto. 2028",
         "currency": "ARS",
         "issue_date": date(2020, 9, 4),
@@ -1149,11 +1135,13 @@ BOND_RULES = {
         "governing_law": "Argentina",
         "tipo": "CER",
         "coupon": 0.0225,
+        "coupon_real": 0.0225,       # ← agregar
+        "freq": 2,                    # ← agregar
+        "amort_last_n": 10,           # ← agregar
         "cer_adjusted": True,
         "cer_lag_business_days": 10,
         "first_coupon_date": date(2021, 5, 9),
         "coupon_dates": ("05-09", "11-09"),
-        # 10 cuotas semestrales iguales (10%) desde 09/05/2024 hasta 09/11/2028
         "amortization_schedule": [
             (date(2024, 5,  9), 0.10),
             (date(2024, 11, 9), 0.10),

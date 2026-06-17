@@ -3175,9 +3175,10 @@ if df_cer is not None and not df_cer.empty and cer_df is not None:
             except Exception:
                 return None
 
-        df_cer.loc[mask_especiales, "TIR CER cupón cero (%)"] = (
-            df_cer.loc[mask_especiales].apply(_calc_tir_especial, axis=1).values
-        )
+                
+        tirs_especiales = df_cer.loc[mask_especiales].apply(_calc_tir_especial, axis=1)
+        tirs_especiales = pd.to_numeric(tirs_especiales, errors="coerce")
+        df_cer.loc[mask_especiales, "TIR CER cupón cero (%)"] = tirs_especiales.values
         df_cer.loc[mask_especiales, "tipo"] = "BONO CER c/cupón"
 
 # =========================

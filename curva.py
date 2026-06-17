@@ -620,12 +620,6 @@ FECHA_VENCIMIENTO = {
 # =========================
 
 BOND_RULES = {
-    "TX31": {
-        "coupon_real": 0.025,
-        "freq": 2,
-        "amort_last_n": 10,
-        "daycount": "ACT/ACT",
-    },
     "DICP": {
         "coupon_real": 0.0583,
         "freq": 2,
@@ -639,7 +633,37 @@ BOND_RULES = {
         "daycount": "ACT/ACT",
     },
 
-
+    "TX31": {
+            "full_name": "Bonos del Tesoro Nacional en Pesos con Ajuste por CER 2,50% Vto. 2031",
+            "currency": "ARS",
+            "issue_date": date(2022, 5, 31),
+            "maturity": date(2031, 11, 30),
+            "frequency": 2,
+            "day_count": "30/360",
+            "min_denomination": 1.0,
+            "governing_law": "Argentina",
+            "tipo": "CER",
+            "coupon": 0.025,
+            "coupon_real": 0.025,       # ← agregar
+            "freq": 2,                   # ← agregar
+            "amort_last_n": 10,          # ← agregar
+            "cer_adjusted": True,
+            "cer_lag_business_days": 10,
+            "first_coupon_date": date(2022, 11, 30),
+            "coupon_dates": ("05-30", "11-30"),
+            "amortization_schedule": [
+                (date(2027, 5, 30), 0.10),
+                (date(2027, 11, 30), 0.10),
+                (date(2028, 5, 30), 0.10),
+                (date(2028, 11, 30), 0.10),
+                (date(2029, 5, 30), 0.10),
+                (date(2029, 11, 30), 0.10),
+                (date(2030, 5, 30), 0.10),
+                (date(2030, 11, 30), 0.10),
+                (date(2031, 5, 30), 0.10),
+                (date(2031, 11, 30), 0.10),
+            ],
+        },
 
 
     # ── A. AL30 – Bono USD Step Up 2030 Ley Argentina ──────────────────────

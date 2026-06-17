@@ -3547,166 +3547,166 @@ with tab_curvas:
             )
 
 
-            with col_cer_graf:
-                        tir_col = "TIR CER cupón cero (%)"
+        with col_cer_graf:
+                    tir_col = "TIR CER cupón cero (%)"
 
-                        df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
-                        df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
+                    df_plot = df_cer.dropna(subset=["dias_a_vencimiento", tir_col]).copy()
+                    df_plot = df_plot[df_plot["dias_a_vencimiento"] > 0]
 
-                        if df_plot.empty:
-                            st.info("No hay puntos CER con TIR y días a vencimiento.")
-                        else:
-                            df_corto = df_plot[df_plot["dias_a_vencimiento"] <= 365].copy()
-                            df_largo = df_plot[df_plot["dias_a_vencimiento"] > 365].copy()
+                    if df_plot.empty:
+                        st.info("No hay puntos CER con TIR y días a vencimiento.")
+                    else:
+                        df_corto = df_plot[df_plot["dias_a_vencimiento"] <= 365].copy()
+                        df_largo = df_plot[df_plot["dias_a_vencimiento"] > 365].copy()
 
 
-                            def grafico_tramo_cer(df_tramo, titulo, color_default):
-                                if len(df_tramo) < 2:
-                                    st.info(f"No hay suficientes puntos para graficar {titulo}.")
-                                    return
+                        def grafico_tramo_cer(df_tramo, titulo, color_default):
+                            if len(df_tramo) < 2:
+                                st.info(f"No hay suficientes puntos para graficar {titulo}.")
+                                return
 
-                                colores_tipo = {
-                                    "LETRA CER":        "#4fc3f7",
-                                    "BONO CER":         "#1565c0",
-                                    "BONO CER c/cupón": "#ff9800",
-                                }
+                            colores_tipo = {
+                                "LETRA CER":        "#4fc3f7",
+                                "BONO CER":         "#1565c0",
+                                "BONO CER c/cupón": "#ff9800",
+                            }
 
-                                x = df_tramo["dias_a_vencimiento"].astype(float).values
-                                y = pd.to_numeric(df_tramo[tir_col], errors="coerce").astype(float).values
+                            x = df_tramo["dias_a_vencimiento"].astype(float).values
+                            y = pd.to_numeric(df_tramo[tir_col], errors="coerce").astype(float).values
 
-                                # Regresión solo con cupón cero
-                                mask_cupon_cero = df_tramo["tipo"].isin(["LETRA CER", "BONO CER"])
-                                x_reg = x[mask_cupon_cero.values]
-                                y_reg = y[mask_cupon_cero.values]
+                            # Regresión solo con cupón cero
+                            mask_cupon_cero = df_tramo["tipo"].isin(["LETRA CER", "BONO CER"])
+                            x_reg = x[mask_cupon_cero.values]
+                            y_reg = y[mask_cupon_cero.values]
 
-                                fig = go.Figure()
+                            fig = go.Figure()
 
-                                if len(x_reg) >= 2:
-                                    a, b = np.polyfit(np.log(x_reg), y_reg, 1)
-                                    x_line = np.linspace(x_reg.min(), x_reg.max(), 200)
-                                    y_line = a * np.log(x_line) + b
+                            if len(x_reg) >= 2:
+                                a, b = np.polyfit(np.log(x_reg), y_reg, 1)
+                                x_line = np.linspace(x_reg.min(), x_reg.max(), 200)
+                                y_line = a * np.log(x_line) + b
 
-                                    df_tramo = df_tramo.copy()
-                                    df_tramo["tir_curva"] = a * np.log(df_tramo["dias_a_vencimiento"]) + b
-                                    df_tramo["distancia_curva"] = pd.to_numeric(df_tramo[tir_col], errors="coerce") - df_tramo["tir_curva"]
+                                df_tramo = df_tramo.copy()
+                                df_tramo["tir_curva"] = a * np.log(df_tramo["dias_a_vencimiento"]) + b
+                                df_tramo["distancia_curva"] = pd.to_numeric(df_tramo[tir_col], errors="coerce") - df_tramo["tir_curva"]
 
-                                    # Outliers solo sobre cupón cero
-                                    df_cc = df_tramo[df_tramo["tipo"].isin(["LETRA CER", "BONO CER"])]
-                                    idx_barato = df_cc["distancia_curva"].idxmax() if not df_cc.empty else None
-                                    idx_caro = df_cc["distancia_curva"].idxmin() if not df_cc.empty else None
+                                # Outliers solo sobre cupón cero
+                                df_cc = df_tramo[df_tramo["tipo"].isin(["LETRA CER", "BONO CER"])]
+                                idx_barato = df_cc["distancia_curva"].idxmax() if not df_cc.empty else None
+                                idx_caro = df_cc["distancia_curva"].idxmin() if not df_cc.empty else None
 
-                                    fig.add_trace(go.Scatter(
-                                        x=x_line, y=y_line,
-                                        mode="lines",
-                                        name="Regresión log",
-                                        line=dict(color="#29b6f6", width=2, dash="dash"),
-                                        showlegend=False
-                                    ))
-                                else:
-                                    idx_barato = None
-                                    idx_caro = None
-                                    df_tramo = df_tramo.copy()
-                                    df_tramo["distancia_curva"] = np.nan
+                                fig.add_trace(go.Scatter(
+                                    x=x_line, y=y_line,
+                                    mode="lines",
+                                    name="Regresión log",
+                                    line=dict(color="#29b6f6", width=2, dash="dash"),
+                                    showlegend=False
+                                ))
+                            else:
+                                idx_barato = None
+                                idx_caro = None
+                                df_tramo = df_tramo.copy()
+                                df_tramo["distancia_curva"] = np.nan
 
-                                # Graficar por tipo
-                                for tipo in df_tramo["tipo"].unique():
-                                    sub = df_tramo[df_tramo["tipo"] == tipo]
-                                    color = colores_tipo.get(tipo, "#aaaaaa")
+                            # Graficar por tipo
+                            for tipo in df_tramo["tipo"].unique():
+                                sub = df_tramo[df_tramo["tipo"] == tipo]
+                                color = colores_tipo.get(tipo, "#aaaaaa")
 
-                                    fig.add_trace(go.Scatter(
-                                        x=sub["dias_a_vencimiento"],
-                                        y=sub[tir_col],
-                                        mode="markers+text",
-                                        name=tipo,
-                                        marker=dict(
-                                            size=10,
-                                            opacity=0.85,
-                                            color=color,
-                                            symbol="diamond" if tipo == "BONO CER c/cupón" else "circle",
-                                            line=dict(
-                                                width=[3 if idx in [idx_barato, idx_caro] else 0
-                                                    for idx in sub.index],
-                                                color=["#00e676" if idx == idx_barato
-                                                    else "#ff1744" if idx == idx_caro
-                                                    else "white"
-                                                    for idx in sub.index]
-                                            )
-                                        ),
-                                        text=sub["symbol"],
-                                        textposition="top center",
-                                        textfont=dict(size=10, color="white"),
-                                        hovertemplate=(
-                                            "<b>%{text}</b><br>"
-                                            "Días: %{x}<br>"
-                                            "TIR CER: %{y:.2f}%<br>"
-                                            "Precio: %{customdata[0]:.2f}<br>"
-                                            "Vencimiento: %{customdata[1]}<extra></extra>"
-                                        ),
-                                        customdata=np.stack([
-                                            pd.to_numeric(sub["c"], errors="coerce").round(2),
-                                            pd.to_datetime(sub["vencimiento"]).dt.strftime("%Y-%m-%d")
-                                        ], axis=-1),
-                                    ))
+                                fig.add_trace(go.Scatter(
+                                    x=sub["dias_a_vencimiento"],
+                                    y=sub[tir_col],
+                                    mode="markers+text",
+                                    name=tipo,
+                                    marker=dict(
+                                        size=10,
+                                        opacity=0.85,
+                                        color=color,
+                                        symbol="diamond" if tipo == "BONO CER c/cupón" else "circle",
+                                        line=dict(
+                                            width=[3 if idx in [idx_barato, idx_caro] else 0
+                                                for idx in sub.index],
+                                            color=["#00e676" if idx == idx_barato
+                                                else "#ff1744" if idx == idx_caro
+                                                else "white"
+                                                for idx in sub.index]
+                                        )
+                                    ),
+                                    text=sub["symbol"],
+                                    textposition="top center",
+                                    textfont=dict(size=10, color="white"),
+                                    hovertemplate=(
+                                        "<b>%{text}</b><br>"
+                                        "Días: %{x}<br>"
+                                        "TIR CER: %{y:.2f}%<br>"
+                                        "Precio: %{customdata[0]:.2f}<br>"
+                                        "Vencimiento: %{customdata[1]}<extra></extra>"
+                                    ),
+                                    customdata=np.stack([
+                                        pd.to_numeric(sub["c"], errors="coerce").round(2),
+                                        pd.to_datetime(sub["vencimiento"]).dt.strftime("%Y-%m-%d")
+                                    ], axis=-1),
+                                ))
 
-                                # Título con outliers
-                                if idx_barato is not None and idx_caro is not None:
-                                    ticker_barato = df_tramo.loc[idx_barato, "symbol"]
-                                    ticker_caro = df_tramo.loc[idx_caro, "symbol"]
-                                    dist_barato = df_tramo.loc[idx_barato, "distancia_curva"]
-                                    dist_caro = df_tramo.loc[idx_caro, "distancia_curva"]
-                                    titulo_text = (
-                                        f"{titulo} — "
-                                        f"<span style='color:#00e676'>Barato: {ticker_barato} (+{dist_barato:.2f}pp)</span>  "
-                                        f"<span style='color:#ff1744'>Caro: {ticker_caro} ({dist_caro:.2f}pp)</span>"
-                                    )
-                                else:
-                                    titulo_text = titulo
-
-                                fig.update_layout(
-                                    title=dict(text=titulo_text, font=dict(size=12)),
-                                    xaxis_title="Días a vencimiento",
-                                    yaxis_title="TIR CER (%)",
-                                    hovermode="closest",
-                                    template="plotly_dark",
-                                    height=320,
-                                    margin=dict(l=10, r=10, t=50, b=10),
-                                    legend=dict(orientation="h", yanchor="bottom", y=1.02)
-                                )
-
-                                st.plotly_chart(fig, use_container_width=True)
-
-                            grafico_tramo_cer(df_corto, "CER ≤ 1 año", "#4fc3f7")
-                            grafico_tramo_cer(df_largo, "CER > 1 año", "#1565c0")           
-                            
-
-                            # =========================
-                            # TAMAR (BCRA)
-                            # =========================
-                            st.markdown("---")
-                            st.markdown("## TAMAR")
-
-                            tamar_label = st.selectbox(
-                                "Serie TAMAR",
-                                options=list(TAMAR_VARIABLES.keys()),
-                                index=0,
-                                key="tamar_serie"
-                            )
-                            ID_TAMAR_SEL = TAMAR_VARIABLES[tamar_label]
-
-                            tamar_hoy = bcra_tamar_ultimo(ID_TAMAR_SEL)
-
-                            if tamar_hoy:
-                                col_t1, col_t2, _ = st.columns([1, 1, 2])
-                                col_t1.metric(
-                                    "TAMAR actual",
-                                    f"{tamar_hoy['valor']:.2f}%"
-                                )
-                                col_t2.metric(
-                                    "Última actualización",
-                                    pd.to_datetime(tamar_hoy["fecha"]).strftime("%d/%m/%Y")
+                            # Título con outliers
+                            if idx_barato is not None and idx_caro is not None:
+                                ticker_barato = df_tramo.loc[idx_barato, "symbol"]
+                                ticker_caro = df_tramo.loc[idx_caro, "symbol"]
+                                dist_barato = df_tramo.loc[idx_barato, "distancia_curva"]
+                                dist_caro = df_tramo.loc[idx_caro, "distancia_curva"]
+                                titulo_text = (
+                                    f"{titulo} — "
+                                    f"<span style='color:#00e676'>Barato: {ticker_barato} (+{dist_barato:.2f}pp)</span>  "
+                                    f"<span style='color:#ff1744'>Caro: {ticker_caro} ({dist_caro:.2f}pp)</span>"
                                 )
                             else:
-                                st.warning("No se pudo obtener la TAMAR del BCRA.")
+                                titulo_text = titulo
+
+                            fig.update_layout(
+                                title=dict(text=titulo_text, font=dict(size=12)),
+                                xaxis_title="Días a vencimiento",
+                                yaxis_title="TIR CER (%)",
+                                hovermode="closest",
+                                template="plotly_dark",
+                                height=320,
+                                margin=dict(l=10, r=10, t=50, b=10),
+                                legend=dict(orientation="h", yanchor="bottom", y=1.02)
+                            )
+
+                            st.plotly_chart(fig, use_container_width=True)
+
+                        grafico_tramo_cer(df_corto, "CER ≤ 1 año", "#4fc3f7")
+                        grafico_tramo_cer(df_largo, "CER > 1 año", "#1565c0")           
+                            
+
+                        # =========================
+                        # TAMAR (BCRA)
+                        # =========================
+                        st.markdown("---")
+                        st.markdown("## TAMAR")
+
+                        tamar_label = st.selectbox(
+                            "Serie TAMAR",
+                            options=list(TAMAR_VARIABLES.keys()),
+                            index=0,
+                            key="tamar_serie"
+                        )
+                        ID_TAMAR_SEL = TAMAR_VARIABLES[tamar_label]
+
+                        tamar_hoy = bcra_tamar_ultimo(ID_TAMAR_SEL)
+
+                        if tamar_hoy:
+                            col_t1, col_t2, _ = st.columns([1, 1, 2])
+                            col_t1.metric(
+                                "TAMAR actual",
+                                f"{tamar_hoy['valor']:.2f}%"
+                            )
+                            col_t2.metric(
+                                "Última actualización",
+                                pd.to_datetime(tamar_hoy["fecha"]).strftime("%d/%m/%Y")
+                            )
+                        else:
+                            st.warning("No se pudo obtener la TAMAR del BCRA.")
 
 
 # =========================

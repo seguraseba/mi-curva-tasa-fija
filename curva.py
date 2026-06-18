@@ -208,6 +208,8 @@ def bopreales_usd_lista(precio_col="c"):
 
             # TIR = retorno simple del rescate
             tir = (valor_tecnico / float(precio) - 1) * 100
+            if put_activo:
+                st.write(f"DEBUG {bono}: precio={precio}, vn_remanente={vn_remanente}, tir={tir}")
 
             # Duration = tiempo al flujo único en años
             t = (fecha_liq - hoy).days / 365.0

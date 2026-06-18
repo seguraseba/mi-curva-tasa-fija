@@ -186,53 +186,101 @@ def bopreales_usd_lista(precio_col="c"):
 
         fecha_put = PUT_FECHAS.get(bono_modelo)
 
-        # Si el put está activo (fecha_put <= hoy), usar próxima fecha de cupón
-        # Si el put no está activo aún, usar la fecha de put como vencimiento efectivo
-        # Si no hay put, usar vencimiento real
-        if fecha_put is not None and fecha_put <= hoy:
-            # Put ya activo — usar próxima fecha de cupón disponible
-            fechas_futuras = df_flujos[df_flujos["fecha"] > hoy]["fecha"]
-            vencimiento_efectivo = fechas_futuras.min() if not fechas_futuras.empty else df_flujos["fecha"].max()
+        # Calcular VN remanente hoy descontando amortizaciones ya pagadas
+        rules = BOND_RULES.get(bono_modelo, {})
+        amort_sched = rules.get("amortization_schedule", [])
+        vn_remanente = 100.0
+        for fecha_amort, pct in amort_sched:
+            if pd.Timestamp(fecha_amort) <= hoy:
+                vn_remanente -= pct * 100.0
+        vn_remanente = max(vn_remanente, 0.0)
+
+        # Si el put está activo y el precio está por debajo del valor técnico,
+        # asumir ejercicio inmediato — liquidación hoy + 1 hábil
+        put_activo = fecha_put is not None and fecha_put <= hoy
+        valor_tecnico = vn_remanente  # a par
+
+        if put_activo and float(precio) < valor_tecnico:
+            # Ejercicio inmediato — un solo flujo: valor técnico en t+1 hábil
+            fecha_liq = hoy + ARG_BDAY
+            vencimiento = df_flujos["fecha"].max()
+            años_al_vto = (vencimiento - hoy).days / 365.25
+
+            cashflows_put = [-float(precio), valor_tecnico]
+            fechas_put_cf = [hoy, fecha_liq]
+
+            try:
+                tir = float(xirr_dates(fechas_put_cf, cashflows_put, guess=0.10))
+            except Exception:
+                tir = np.nan
+
+            # Duration = tiempo al flujo único (prácticamente 0)
+            t = (fecha_liq - hoy).days / 365.0
+            duration = t
+
         elif fecha_put is not None and fecha_put > hoy:
-            # Put todavía no activo — usar fecha de inicio del put
+            # Put todavía no activo — usar fecha de put como vencimiento efectivo
             vencimiento_efectivo = fecha_put
-        else:
-            # Sin put — usar vencimiento real
-            vencimiento_efectivo = df_flujos["fecha"].max()
+            vencimiento = df_flujos["fecha"].max()
+            años_al_vto = (vencimiento - hoy).days / 365.25
 
-        vencimiento = df_flujos["fecha"].max()  # para mostrar en tabla
-        años_al_vto = (vencimiento - hoy).days / 365.25
+            df_flujos_put = df_flujos[df_flujos["fecha"] <= vencimiento_efectivo].copy()
+            if df_flujos_put.empty:
+                df_flujos_put = df_flujos.copy()
 
-        # Duration y TIR usando flujos hasta vencimiento efectivo
-        df_flujos_put = df_flujos[df_flujos["fecha"] <= vencimiento_efectivo].copy()
-        if df_flujos_put.empty:
-            df_flujos_put = df_flujos.copy()
+            # Agregar valor técnico como flujo adicional en fecha_put
+            # calculando VN remanente en esa fecha
+            vn_en_put = 100.0
+            for fecha_amort, pct in amort_sched:
+                if pd.Timestamp(fecha_amort) <= fecha_put:
+                    vn_en_put -= pct * 100.0
+            vn_en_put = max(vn_en_put, 0.0)
 
-        # Recalcular TIR con flujos hasta put
-        fechas_put_cf = [hoy] + list(df_flujos_put["fecha"])
-        cashflows_put = [-float(precio)] + list(df_flujos_put["flujo"].astype(float))
+            # Reemplazar último flujo sumándole el VN remanente
+            fechas_put_cf = [hoy] + list(df_flujos_put["fecha"])
+            cashflows_put = [-float(precio)] + list(df_flujos_put["flujo"].astype(float))
+            cashflows_put[-1] += vn_en_put
 
-        # Agregar valor técnico como flujo final si el put está activo o próximo
-        if fecha_put is not None:
-            # Valor técnico = VN remanente al momento del put (simplificado: precio par = 100)
-            # En la práctica sería el VN ajustado, pero 100 es una buena aproximación
-            cashflows_put[-1] = cashflows_put[-1]  # el último flujo ya incluye amort
+            try:
+                tir = float(xirr_dates(fechas_put_cf, cashflows_put, guess=0.10))
+            except Exception:
+                tir = np.nan
 
-        try:
-            tir = float(xirr_dates(fechas_put_cf, cashflows_put, guess=0.10))
-        except Exception:
-            tir = np.nan
-
-        try:
-            tiempos = np.array([(f - hoy).days / 365.0 for f in df_flujos_put["fecha"]], dtype=float)
-            flujos_put = df_flujos_put["flujo"].astype(float).values
-            if pd.notna(tir):
-                pv = flujos_put / ((1.0 + tir) ** tiempos)
-                duration = float(np.sum(tiempos * pv) / np.sum(pv))
-            else:
+            try:
+                tiempos = np.array([(f - hoy).days / 365.0 for f in df_flujos_put["fecha"]], dtype=float)
+                flujos_put = cashflows_put[1:]
+                if pd.notna(tir):
+                    pv = np.array(flujos_put) / ((1.0 + tir) ** tiempos)
+                    duration = float(np.sum(tiempos * pv) / np.sum(pv))
+                else:
+                    duration = np.nan
+            except Exception:
                 duration = np.nan
-        except Exception:
-            duration = np.nan
+
+        else:
+            # Sin put o BPOD7 — usar vencimiento real
+            vencimiento = df_flujos["fecha"].max()
+            años_al_vto = (vencimiento - hoy).days / 365.25
+
+            df_flujos_put = df_flujos.copy()
+            fechas_put_cf = [hoy] + list(df_flujos_put["fecha"])
+            cashflows_put = [-float(precio)] + list(df_flujos_put["flujo"].astype(float))
+
+            try:
+                tir = float(xirr_dates(fechas_put_cf, cashflows_put, guess=0.10))
+            except Exception:
+                tir = np.nan
+
+            try:
+                tiempos = np.array([(f - hoy).days / 365.0 for f in df_flujos_put["fecha"]], dtype=float)
+                flujos_put = df_flujos_put["flujo"].astype(float).values
+                if pd.notna(tir):
+                    pv = flujos_put / ((1.0 + tir) ** tiempos)
+                    duration = float(np.sum(tiempos * pv) / np.sum(pv))
+                else:
+                    duration = np.nan
+            except Exception:
+                duration = np.nan     
 
         rows.append({
             "bono": bono,

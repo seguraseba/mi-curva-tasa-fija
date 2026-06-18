@@ -201,19 +201,35 @@ def bopreales_usd_lista(precio_col="c"):
         valor_tecnico = vn_remanente  # a par
 
         if put_activo:
-            # Ejercicio inmediato — retorno simple sin anualizar
-            fecha_liq = hoy + ARG_BDAY
-            vencimiento = df_flujos["fecha"].max()
-            años_al_vto = (vencimiento - hoy).days / 365.25
+            # Valor técnico = VN remanente + interés corrido
+            # Calcular interés corrido desde último cupón
+            fechas_cupon = sorted([pd.Timestamp(f) for f, _ in amort_sched])
+            cupones_pasados = [f for f in fechas_cupon if f <= hoy]
+            cupones_futuros = [f for f in fechas_cupon if f > hoy]
+
+            if cupones_pasados and cupones_futuros:
+                ultimo_cupon = max(cupones_pasados)
+                proximo_cupon = min(cupones_futuros)
+                dias_periodo = (proximo_cupon - ultimo_cupon).days
+                dias_corridos = (hoy - ultimo_cupon).days
+                tasa_anual = rules.get("coupon_schedule", [(None, None, 0.05)])[0][2]
+                freq = rules.get("frequency", 2)
+                interes_corrido = vn_remanente * tasa_anual / freq * (dias_corridos / dias_periodo)
+            else:
+                interes_corrido = 0.0
+
+            valor_tecnico = vn_remanente + interes_corrido
 
             # TIR = retorno simple del rescate
             tir = (valor_tecnico / float(precio) - 1) * 100
-            if put_activo:
-                st.write(f"DEBUG {bono}: precio={precio}, vn_remanente={vn_remanente}, tir={tir}")
 
-            # Duration = tiempo al flujo único en años
+            fecha_liq = hoy + ARG_BDAY
+            vencimiento = df_flujos["fecha"].max()
+            años_al_vto = (vencimiento - hoy).days / 365.25
             t = (fecha_liq - hoy).days / 365.0
             duration = t
+
+            st.write(f"DEBUG {bono}: precio={precio}, vn_rem={vn_remanente:.4f}, int_corrido={interes_corrido:.4f}, vt={valor_tecnico:.4f}, tir={tir:.4f}")
 
         elif fecha_put is not None and fecha_put > hoy:
             # Put todavía no activo — usar fecha de put como vencimiento efectivo

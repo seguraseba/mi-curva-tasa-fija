@@ -201,20 +201,15 @@ def bopreales_usd_lista(precio_col="c"):
         valor_tecnico = vn_remanente  # a par
 
         if put_activo:
-            # Ejercicio inmediato — un solo flujo: valor técnico en t+1 hábil
+            # Ejercicio inmediato — retorno simple sin anualizar
             fecha_liq = hoy + ARG_BDAY
             vencimiento = df_flujos["fecha"].max()
             años_al_vto = (vencimiento - hoy).days / 365.25
 
-            cashflows_put = [-float(precio), valor_tecnico]
-            fechas_put_cf = [hoy, fecha_liq]
+            # TIR = retorno simple del rescate
+            tir = (valor_tecnico / float(precio) - 1) * 100
 
-            try:
-                tir = float(xirr_dates(fechas_put_cf, cashflows_put, guess=0.10))
-            except Exception:
-                tir = np.nan
-
-            # Duration = tiempo al flujo único (prácticamente 0)
+            # Duration = tiempo al flujo único en años
             t = (fecha_liq - hoy).days / 365.0
             duration = t
 

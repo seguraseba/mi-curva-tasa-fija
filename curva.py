@@ -534,8 +534,8 @@ PARES_LEGISLACION = [
 # PARES INFLACION IMPLICITA
 # =========================
 PARES_INFLACION_IMPLICITA = [
-    {"ticker_fija": "T30J6", "ticker_cer": "TZX26", "par": "T30J6 / TZX26"},
     {"ticker_fija": "S31L6", "ticker_cer": "X31L6", "par": "S31L6 / X31L6"},
+    {"ticker_fija": "S30S6", "ticker_cer": "X30S6", "par": "S30S6 / X30S6"},
     {"ticker_fija": "S30N6", "ticker_cer": "X30N6", "par": "S30N6 / X30N6"},
     {"ticker_fija": "T30A7", "ticker_cer": "TZXA7", "par": "T30A7 / TZXA7"},
 ]
@@ -1639,6 +1639,86 @@ def _fetch_json(url: str):
     resp = requests.get(url, timeout=10)
     resp.raise_for_status()
     return resp.json()
+
+
+def detectar_cer_a_tf(df_cer: pd.DataFrame, cer_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Detecta letras CER cupón cero cuyo CER de liquidación ya está publicado
+    (vencimiento ≤ 45 días) y calcula su TIR como tasa fija.
+    """
+    if df_cer is None or df_cer.empty or cer_df is None:
+        return pd.DataFrame()
+
+    hoy = pd.Timestamp.today().normalize()
+    filas = []
+
+    # Solo cupón cero, excluir especiales con cupón
+    mask = (
+        df_cer["tipo"].isin(["LETRA CER", "BONO CER"])
+    ) & (
+        ~df_cer["symbol"].astype(str).str.upper().isin(CER_ESPECIALES_CON_FLUJOS)
+    )
+
+    df_candidatos = df_cer[mask].copy()
+
+    for _, row in df_candidatos.iterrows():
+        sym = str(row["symbol"]).strip().upper()
+        dias = row.get("dias_a_vencimiento")
+        precio = row.get("c")
+        vencimiento = row.get("vencimiento")
+
+        if dias is None or pd.isna(dias) or dias > 45:
+            continue
+        if precio is None or pd.isna(precio) or float(precio) <= 0:
+            continue
+        if vencimiento is None or pd.isna(vencimiento):
+            continue
+
+        # Fecha de liquidación del CER final = vto - 10 hábiles
+        fecha_vto = pd.Timestamp(vencimiento).normalize()
+        f_vto_m10 = fecha_vto - 10 * ARG_BDAY
+
+        # Verificar si ese CER ya está publicado
+        cer_final = cer_en_o_antes(cer_df, f_vto_m10)
+        if cer_final is None:
+            continue
+
+        # Verificar CER de emisión
+        if sym not in FECHA_EMISION:
+            continue
+
+        fecha_emis = pd.Timestamp(FECHA_EMISION[sym]).normalize()
+        f_emis_m10 = fecha_emis - 10 * ARG_BDAY
+        cer_emis = cer_en_o_antes(cer_df, f_emis_m10)
+
+        if cer_emis is None or cer_emis <= 0:
+            continue
+
+        # Pago final conocido
+        coef = cer_final / cer_emis
+        pago_final = 100.0 * coef
+
+        # TIR como tasa fija
+        tir = tir_cer_cupon_cero(float(precio), pago_final, int(dias))
+        tna = tna_cer_cupon_cero(float(precio), pago_final, int(dias))
+        tem = ((1 + tir / 100) ** (1/12) - 1) * 100 if tir is not None else None
+
+        filas.append({
+            "tipo": "LETRA CER→TF",
+            "symbol": sym,
+            "c": float(precio),
+            "c_con_fee": float(precio),  # se recalcula después con fee
+            "dias_a_vencimiento": int(dias),
+            "vencimiento": vencimiento,
+            "TNA (%)": tna,
+            "TIR (%)": tir,
+            "TEM (%)": tem,
+            "pago_final_cer": round(pago_final, 4),
+            "cer_final": round(cer_final, 4),
+            "cer_emis": round(cer_emis, 4),
+        })
+
+    return pd.DataFrame(filas)
 
 from dateutil.relativedelta import relativedelta
 
@@ -3363,6 +3443,29 @@ with tab_curvas:
         df_tf_display["TIR (%)"] = df_tf_display.apply(lambda row: calcular_tir_fee(row, PAGOS_FINALES), axis=1)
         df_tf_display["TEM (%)"] = df_tf_display.apply(calcular_tem_desde_tir, axis=1)
 
+        # Detectar letras CER con CER final publicado y agregarlas a TF
+        df_cer_a_tf = detectar_cer_a_tf(df_cer, cer_df)
+        if not df_cer_a_tf.empty:
+            # Aplicar fee
+            df_cer_a_tf["c_con_fee"] = df_cer_a_tf["c"] * (1 + fee_pct / 100.0)
+            # Recalcular TIR con fee
+            for idx, row in df_cer_a_tf.iterrows():
+                pago = row["pago_final_cer"]
+                px_fee = row["c_con_fee"]
+                dias = row["dias_a_vencimiento"]
+                tir_fee = tir_cer_cupon_cero(px_fee, pago, dias)
+                tna_fee = tna_cer_cupon_cero(px_fee, pago, dias)
+                tem_fee = ((1 + tir_fee / 100) ** (1/12) - 1) * 100 if tir_fee else None
+                df_cer_a_tf.at[idx, "TIR (%)"] = tir_fee
+                df_cer_a_tf.at[idx, "TNA (%)"] = tna_fee
+                df_cer_a_tf.at[idx, "TEM (%)"] = tem_fee
+
+            df_tf_display = pd.concat(
+                [df_tf_display, df_cer_a_tf],
+                ignore_index=True,
+                sort=False
+            ).sort_values("dias_a_vencimiento")
+
         col_tf_tabla, col_tf_graf = st.columns([1.2, 1])
 
         # --- Tabla TF (izquierda) ---
@@ -3444,7 +3547,7 @@ with tab_curvas:
                 fig = go.Figure()
 
                 tipos = df_plot["tipo"].unique()
-                colores = {"LETRA": "#4fc3f7", "BONO": "#1565c0"}  # azul claro y azul oscuro
+                colores = {"LETRA": "#4fc3f7", "BONO": "#1565c0", "LETRA CER→TF": "#69f0ae"}  # azul claro y azul oscuro
 
                 # Calcular distancia a la curva para resaltar outliers
                 df_plot = df_plot.copy()

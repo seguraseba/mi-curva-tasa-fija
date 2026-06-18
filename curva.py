@@ -200,7 +200,7 @@ def bopreales_usd_lista(precio_col="c"):
         put_activo = fecha_put is not None and fecha_put <= hoy
         valor_tecnico = vn_remanente  # a par
 
-        if put_activo and float(precio) < valor_tecnico:
+        if put_activo:
             # Ejercicio inmediato — un solo flujo: valor técnico en t+1 hábil
             fecha_liq = hoy + ARG_BDAY
             vencimiento = df_flujos["fecha"].max()

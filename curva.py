@@ -207,14 +207,21 @@ def bopreales_usd_lista(precio_col="c"):
             cupones_pasados = [f for f in fechas_cupon if f <= hoy]
             cupones_futuros = [f for f in fechas_cupon if f > hoy]
 
+            # Usar fechas de cupón reales (no amortización)
+            fechas_cupon_reales = sorted([
+                pd.Timestamp(f) for f in generar_fechas_cupon_desde_rules(rules)
+            ])
+            cupones_pasados = [f for f in fechas_cupon_reales if f <= hoy]
+            cupones_futuros = [f for f in fechas_cupon_reales if f > hoy]
+
             if cupones_pasados and cupones_futuros:
                 ultimo_cupon = max(cupones_pasados)
                 proximo_cupon = min(cupones_futuros)
                 dias_periodo = (proximo_cupon - ultimo_cupon).days
                 dias_corridos = (hoy - ultimo_cupon).days
-                tasa_anual = rules.get("coupon_schedule", [(None, None, 0.05)])[0][2]
+                tasa_anual = tasa_cupon_en_fecha(rules, ultimo_cupon.date())
                 freq = rules.get("frequency", 2)
-                interes_corrido = vn_remanente * tasa_anual / freq * (dias_corridos / dias_periodo)
+                interes_corrido = vn_remanente * tasa_anual / freq * (dias_corridos / dias_periodo) if dias_periodo > 0 else 0.0
             else:
                 interes_corrido = 0.0
 

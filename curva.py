@@ -3963,16 +3963,6 @@ with tab_cer_proj:
                     )
                 
                 else:
-                    precio_manual = st.number_input(
-                        f"Precio de entrada ({ticker_cer})",
-                        min_value=0.01,
-                        value=float(round(precio_actual_bono, 2)),
-                        step=0.01,
-                        format="%.2f",
-                        help="Por defecto usa el precio de mercado. Podés modificarlo para simular escenarios.",
-                        key="precio_manual_cer"
-                    )
-
                     resultado_bono = proyectar_cer_multi_tramos(
                         fecha_cer_conocido=fecha_cer_conocido,
                         cer_conocido=cer_conocido,

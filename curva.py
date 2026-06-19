@@ -3963,6 +3963,16 @@ with tab_cer_proj:
                     )
                 
                 else:
+                    precio_manual = st.number_input(
+                        f"Precio de entrada ({ticker_cer})",
+                        min_value=0.01,
+                        value=float(round(precio_actual_bono, 2)),
+                        step=0.01,
+                        format="%.2f",
+                        help="Por defecto usa el precio de mercado. Podés modificarlo para simular escenarios.",
+                        key="precio_manual_cer"
+                    )
+
                     resultado_bono = proyectar_cer_multi_tramos(
                         fecha_cer_conocido=fecha_cer_conocido,
                         cer_conocido=cer_conocido,
@@ -3985,24 +3995,11 @@ with tab_cer_proj:
                         if rendimiento_bono.get("error"):
                             st.warning(rendimiento_bono["error"])
                         else:
-                            # =========================
-                            # FILA 1 — INFO GENERAL
-                            # =========================
                             c1, c2, c3 = st.columns(3)
-
-                            precio_manual = st.number_input(
-                                f"Precio de entrada ({ticker_cer})",
-                                min_value=0.01,
-                                value=float(round(precio_actual_bono, 2)),
-                                step=0.01,
-                                format="%.2f",
-                                help="Por defecto usa el precio de mercado. Podés modificarlo para simular escenarios."
-                            )
-
                             c1.metric("Ticker", ticker_cer)
                             c2.metric("Precio mercado", f"{precio_actual_bono:,.2f}")
                             c3.metric("Días a vencimiento", f"{rendimiento_bono['dias_a_vto']}")
-
+                    
                             st.markdown("---")
 
                             # =========================

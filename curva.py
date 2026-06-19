@@ -3977,7 +3977,7 @@ with tab_cer_proj:
                     else:
                         rendimiento_bono = rendimiento_esperado_cer_cupon_cero(
                             symbol=ticker_cer,
-                            precio_actual=precio_actual_bono,
+                            precio_actual=precio_manual,   # ← cambio acá
                             cer_proyectado_final=resultado_bono["cer_proyectado_obj"],
                             fecha_emision_map=FECHA_EMISION,
                             fecha_vencimiento_map=FECHA_VENCIMIENTO,
@@ -3992,10 +3992,18 @@ with tab_cer_proj:
                             # =========================
                             c1, c2, c3 = st.columns(3)
 
-                            c1.metric("Ticker", ticker_cer)
-                            c2.metric("Precio", f"{precio_actual_bono:,.2f}")
-                            c3.metric("Días a vencimiento", f"{rendimiento_bono['dias_a_vto']}")
+                            precio_manual = st.number_input(
+                                f"Precio de entrada ({ticker_cer})",
+                                min_value=0.01,
+                                value=float(round(precio_actual_bono, 2)),
+                                step=0.01,
+                                format="%.2f",
+                                help="Por defecto usa el precio de mercado. Podés modificarlo para simular escenarios."
+                            )
 
+                            c1.metric("Ticker", ticker_cer)
+                            c2.metric("Precio mercado", f"{precio_actual_bono:,.2f}")
+                            c3.metric("Días a vencimiento", f"{rendimiento_bono['dias_a_vto']}")
 
                             st.markdown("---")
 

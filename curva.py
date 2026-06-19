@@ -3963,6 +3963,16 @@ with tab_cer_proj:
                     )
                 
                 else:
+                    precio_manual = st.number_input(
+                        f"Precio de entrada ({ticker_cer})",
+                        min_value=0.01,
+                        value=float(round(precio_actual_bono, 2)),
+                        step=0.01,
+                        format="%.2f",
+                        help="Por defecto usa el precio de mercado. Podés modificarlo para simular escenarios.",
+                        key="precio_manual_cer"
+                    )
+
                     resultado_bono = proyectar_cer_multi_tramos(
                         fecha_cer_conocido=fecha_cer_conocido,
                         cer_conocido=cer_conocido,
@@ -3970,14 +3980,12 @@ with tab_cer_proj:
                         fecha_objetivo=fecha_objetivo_bono,
                     )
 
-                       
-
                     if resultado_bono.get("error"):
                         st.warning(resultado_bono["error"])
                     else:
                         rendimiento_bono = rendimiento_esperado_cer_cupon_cero(
                             symbol=ticker_cer,
-                            precio_actual=precio_manual,   # ← cambio acá
+                            precio_actual=precio_manual,
                             cer_proyectado_final=resultado_bono["cer_proyectado_obj"],
                             fecha_emision_map=FECHA_EMISION,
                             fecha_vencimiento_map=FECHA_VENCIMIENTO,

@@ -4569,9 +4569,9 @@ with tab_leg:
                 else:
                     st.info("No hay suficientes Globales para graficar.")
 
-                st.markdown("#### Provinciales (Ley NY)")
+                st.markdown("#### Provinciales + Globales (Ley NY)")
 
-                df_prov = df_sob[df_sob["Ley"] == "PROV"].dropna(
+                df_prov = df_sob[df_sob["Ley"].isin(["PROV", "NY"])].dropna(
                     subset=["Duration (años)", "TIR (%)"]
                 ).copy().sort_values("Duration (años)")
 
@@ -4593,29 +4593,39 @@ with tab_leg:
                             x=x_line, y=y_line,
                             mode="lines",
                             name="Regresión log",
-                            line=dict(color="#29b6f6", width=2, dash="dash")
+                            line=dict(color="#29b6f6", width=2, dash="dash"),
+                            showlegend=False
                         ))
 
-                    fig_prov.add_trace(go.Scatter(
-                        x=x, y=y,
-                        mode="markers+text",
-                        text=df_prov["Bono"],
-                        textposition="top center",
-                        textfont=dict(size=10, color="white"),
-                        marker=dict(size=10, opacity=0.85, color="#ff9800"),
-                        hovertemplate=(
-                            "<b>%{text}</b><br>"
-                            "Duration: %{x:.2f}<br>"
-                            "TIR: %{y:.2f}%<br>"
-                            "Precio: %{customdata[0]:.2f}<br>"
-                            "Vencimiento: %{customdata[1]}<extra></extra>"
-                        ),
-                        customdata=np.stack([
-                            df_prov["Precio"].values,
-                            df_prov["Vencimiento"].values
-                        ], axis=-1),
-                        showlegend=False
-                    ))
+                    colores_prov = {"NY": "#4fc3f7", "PROV": "#ff9800"}
+
+                    for ley in ["NY", "PROV"]:
+                        sub = df_prov[df_prov["Ley"] == ley]
+                        if sub.empty:
+                            continue
+                        label = "Globales" if ley == "NY" else "Provinciales"
+                        fig_prov.add_trace(go.Scatter(
+                            x=sub["Duration (años)"],
+                            y=sub["TIR (%)"],
+                            mode="markers+text",
+                            name=label,
+                            text=sub["Bono"],
+                            textposition="top center",
+                            textfont=dict(size=10, color="white"),
+                            marker=dict(size=10, opacity=0.85,
+                                        color=colores_prov[ley]),
+                            hovertemplate=(
+                                "<b>%{text}</b><br>"
+                                "Duration: %{x:.2f}<br>"
+                                "TIR: %{y:.2f}%<br>"
+                                "Precio: %{customdata[0]:.2f}<br>"
+                                "Vencimiento: %{customdata[1]}<extra></extra>"
+                            ),
+                            customdata=np.stack([
+                                sub["Precio"].values,
+                                sub["Vencimiento"].values
+                            ], axis=-1),
+                        ))
 
                     fig_prov.update_layout(
                         xaxis_title="Duration (años)",
@@ -4623,10 +4633,11 @@ with tab_leg:
                         template="plotly_dark",
                         height=350,
                         margin=dict(l=10, r=10, t=30, b=10),
+                        legend=dict(title="Emisor")
                     )
                     st.plotly_chart(fig_prov, use_container_width=True)
                 else:
-                    st.info("No hay suficientes provinciales para graficar.")
+                    st.info("No hay suficientes datos para graficar.")
 
         st.markdown("---")
         st.subheader("BOPREAL USD")

@@ -584,6 +584,125 @@ FECHA_VENCIMIENTO = {
 # =========================
 
 BOND_RULES = {
+
+    "SFD34": {
+        "full_name": "Provincia de Santa Fe 8.10% 2034",
+        "currency": "USD", "issue_date": date(2025,12,11), "maturity": date(2034,12,11),
+        "frequency": 2, "day_count": "30/360", "min_denomination": 1.0,
+        "governing_law": "New York", "tipo": "fixed",
+        "coupon_schedule": [(date(2025,12,11), date(2034,12,11), 0.0810)],
+        "first_coupon_date": date(2026,6,11),
+        "coupon_dates": ("06-11", "12-11"),
+        "amortization_schedule": [
+            (date(2031,12,11), 0.25),
+            (date(2032,12,11), 0.25),
+            (date(2033,12,11), 0.25),
+            (date(2034,12,11), 0.25),
+        ],
+    },
+    "NDT25": {
+        "full_name": "Provincia de Neuquén Step-Up 2030",
+        "currency": "USD", "issue_date": date(2017,4,27), "maturity": date(2030,4,27),
+        "frequency": 2, "day_count": "30/360", "min_denomination": 1000.0,
+        "governing_law": "New York", "tipo": "step_up",
+        "coupon_schedule": [
+            (date(2017,4,27),  date(2020,11,27), 0.0000),
+            (date(2020,11,27), date(2021,10,27), 0.0250),
+            (date(2021,10,27), date(2022,10,27), 0.04625),
+            (date(2022,10,27), date(2023,10,27), 0.06625),
+            (date(2023,10,27), date(2024,10,27), 0.0675),
+            (date(2024,10,27), date(2030,4,27),  0.06875),
+        ],
+        "first_coupon_date": date(2017,10,27),
+        "coupon_dates": ("04-27", "10-27"),
+        "amortization_schedule": [
+            (date(2024,4,27),  round(1/13,6)),
+            (date(2024,10,27), round(1/13,6)),
+            (date(2025,4,27),  round(1/13,6)),
+            (date(2025,10,27), round(1/13,6)),
+            (date(2026,4,27),  round(1/13,6)),
+            (date(2026,10,27), round(1/13,6)),
+            (date(2027,4,27),  round(1/13,6)),
+            (date(2027,10,27), round(1/13,6)),
+            (date(2028,4,27),  round(1/13,6)),
+            (date(2028,10,27), round(1/13,6)),
+            (date(2029,4,27),  round(1/13,6)),
+            (date(2029,10,27), round(1/13,6)),
+            (date(2030,4,27),  round(1/13,6)),
+        ],
+    },
+    "PMM29": {
+        "full_name": "Provincia de Mendoza Step-Up 2029",
+        "currency": "USD", "issue_date": date(2020,10,5), "maturity": date(2029,3,19),
+        "frequency": 2, "day_count": "30/360", "min_denomination": 1000.0,
+        "governing_law": "New York", "tipo": "step_up",
+        "coupon_schedule": [
+            (date(2020,5,19),  date(2021,9,19),  0.0275),
+            (date(2021,9,19),  date(2023,3,19),  0.0425),
+            (date(2023,3,19),  date(2029,3,19),  0.0575),
+        ],
+        "first_coupon_date": date(2021,3,19),
+        "coupon_dates": ("03-19", "09-19"),
+        "amortization_schedule": [
+            (date(2023,3,19),  round(1/13,6)),
+            (date(2023,9,19),  round(1/13,6)),
+            (date(2024,3,19),  round(1/13,6)),
+            (date(2024,9,19),  round(1/13,6)),
+            (date(2025,3,19),  round(1/13,6)),
+            (date(2025,9,19),  round(1/13,6)),
+            (date(2026,3,19),  round(1/13,6)),
+            (date(2026,9,19),  round(1/13,6)),
+            (date(2027,3,19),  round(1/13,6)),
+            (date(2027,9,19),  round(1/13,6)),
+            (date(2028,3,19),  round(1/13,6)),
+            (date(2028,9,19),  round(1/13,6)),
+            (date(2029,3,19),  round(1/13,6)),
+        ],
+    },
+    "BDC36": {
+        "full_name": "Ciudad de Buenos Aires 7.05% 2036",
+        "currency": "USD", "issue_date": date(2026,5,13), "maturity": date(2036,5,13),
+        "frequency": 2, "day_count": "30/360", "min_denomination": 1.0,
+        "governing_law": "New York", "tipo": "fixed",
+        "coupon_schedule": [(date(2026,5,13), date(2036,5,13), 0.0705)],
+        "first_coupon_date": date(2026,11,13),
+        "coupon_dates": ("05-13", "11-13"),
+        "amortization_schedule": [
+            (date(2034,5,13), 0.3333),
+            (date(2035,5,13), 0.3333),
+            (date(2036,5,13), 0.3334),
+        ],
+    },
+    "CO32": {
+        "full_name": "Provincia de Córdoba 9.75% 2032",
+        "currency": "USD", "issue_date": date(2025,7,2), "maturity": date(2032,7,2),
+        "frequency": 2, "day_count": "30/360", "min_denomination": 1.0,
+        "governing_law": "New York", "tipo": "fixed",
+        "coupon_schedule": [(date(2025,7,2), date(2032,7,2), 0.0975)],
+        "first_coupon_date": date(2026,1,2),
+        "coupon_dates": ("01-02", "07-02"),
+        "amortization_schedule": [
+            (date(2030,7,2), 0.33),
+            (date(2031,7,2), 0.33),
+            (date(2032,7,2), 0.34),
+        ],
+    },
+    "CO35": {
+        "full_name": "Provincia de Córdoba 8.60% 2035",
+        "currency": "USD", "issue_date": date(2026,2,3), "maturity": date(2035,2,3),
+        "frequency": 2, "day_count": "30/360", "min_denomination": 1.0,
+        "governing_law": "New York", "tipo": "fixed",
+        "coupon_schedule": [(date(2026,2,3), date(2035,2,3), 0.0860)],
+        "first_coupon_date": date(2026,8,3),
+        "coupon_dates": ("02-03", "08-03"),
+        "amortization_schedule": [
+            (date(2033,2,3), 0.33),
+            (date(2034,2,3), 0.33),
+            (date(2035,2,3), 0.34),
+        ],
+    },
+
+
     "DICP": {
         "coupon_real": 0.0583,
         "freq": 2,
@@ -1285,6 +1404,12 @@ SOBERANOS_API_MAP = {
     "GD38D": "GD38",
     "GD41D": "GD41",
     "GD46D": "GD46",
+    "SFD4D":  "SFD34",
+    "NDT5D":  "NDT25",
+    "PM29D":  "PMM29",
+    "BC36D":  "BDC36",
+    "CO32D":  "CO32",
+    "CO35D":  "CO35",
 }
 
 GLOBAL_RULE_ALIAS = {
@@ -1377,7 +1502,12 @@ def soberanos_usd_lista():
     df["bono_modelo"] = df["bono"].apply(bono_base_flujos)
 
     # ley
-    df["legislacion"] = np.where(df["bono"].str.startswith("GD"), "NY", "ARG")
+    PROVINCIALES = {"SFD34", "NDT25", "PMM29", "BDC36", "CO32", "CO35"}
+    df["legislacion"] = df["bono"].apply(
+        lambda b: "PROV" if b in PROVINCIALES
+                  else "NY" if b.startswith("GD")
+                  else "ARG"
+    )
 
     # vencimiento desde el bono base
     df["vencimiento"] = df["bono_modelo"].map(lambda b: BOND_RULES[b]["maturity"])
@@ -1415,8 +1545,6 @@ def soberanos_usd_lista():
 
     df = df.sort_values(["vencimiento", "bono"]).reset_index(drop=True)
     return df
-
-
 
 def generar_flujos_soberano(symbol: str, rules: dict, vn: float = 100.0):
     """
@@ -4322,6 +4450,10 @@ with tab_leg:
                 df_ny_tabla = df_sob[df_sob["Ley"] == "NY"].copy()
                 st.dataframe(df_ny_tabla, use_container_width=True, hide_index=True)
 
+                st.markdown("#### Provinciales (Ley NY)")
+                df_prov_tabla = df_sob[df_sob["Ley"] == "PROV"].copy()
+                st.dataframe(df_prov_tabla, use_container_width=True, hide_index=True)
+
             with col_graf:
                 st.markdown("#### Bonares (Ley ARG)")
 
@@ -4436,6 +4568,65 @@ with tab_leg:
                     st.plotly_chart(fig_ny, use_container_width=True)
                 else:
                     st.info("No hay suficientes Globales para graficar.")
+
+                st.markdown("#### Provinciales (Ley NY)")
+
+                df_prov = df_sob[df_sob["Ley"] == "PROV"].dropna(
+                    subset=["Duration (años)", "TIR (%)"]
+                ).copy().sort_values("Duration (años)")
+
+                if len(df_prov) >= 2:
+                    x = df_prov["Duration (años)"].astype(float).values
+                    y = df_prov["TIR (%)"].astype(float).values
+                    mask = x > 0
+                    x_reg, y_reg = x[mask], y[mask]
+
+                    fig_prov = go.Figure()
+
+                    if len(x_reg) >= 2:
+                        coef = np.polyfit(np.log(x_reg), y_reg, 1)
+                        a, b = coef
+                        x_line = np.linspace(x_reg.min(), x_reg.max(), 200)
+                        y_line = a * np.log(x_line) + b
+
+                        fig_prov.add_trace(go.Scatter(
+                            x=x_line, y=y_line,
+                            mode="lines",
+                            name="Regresión log",
+                            line=dict(color="#29b6f6", width=2, dash="dash")
+                        ))
+
+                    fig_prov.add_trace(go.Scatter(
+                        x=x, y=y,
+                        mode="markers+text",
+                        text=df_prov["Bono"],
+                        textposition="top center",
+                        textfont=dict(size=10, color="white"),
+                        marker=dict(size=10, opacity=0.85, color="#ff9800"),
+                        hovertemplate=(
+                            "<b>%{text}</b><br>"
+                            "Duration: %{x:.2f}<br>"
+                            "TIR: %{y:.2f}%<br>"
+                            "Precio: %{customdata[0]:.2f}<br>"
+                            "Vencimiento: %{customdata[1]}<extra></extra>"
+                        ),
+                        customdata=np.stack([
+                            df_prov["Precio"].values,
+                            df_prov["Vencimiento"].values
+                        ], axis=-1),
+                        showlegend=False
+                    ))
+
+                    fig_prov.update_layout(
+                        xaxis_title="Duration (años)",
+                        yaxis_title="TIR (%)",
+                        template="plotly_dark",
+                        height=350,
+                        margin=dict(l=10, r=10, t=30, b=10),
+                    )
+                    st.plotly_chart(fig_prov, use_container_width=True)
+                else:
+                    st.info("No hay suficientes provinciales para graficar.")
 
         st.markdown("---")
         st.subheader("BOPREAL USD")

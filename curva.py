@@ -831,6 +831,31 @@ BOND_RULES = {
         ],
     },
 
+
+    "AO29": {
+        "full_name": "Bono del Tesoro Nacional en Dólares Estadounidenses Tasa Fija 6% Vto. 31/10/2029",
+        "currency": "USD",
+        "issue_date": date(2026, 7, 17),
+        "maturity": date(2029, 10, 31),
+        "frequency": 12,
+        "day_count": "30/360",
+        "min_denomination": 1.0,
+        "governing_law": "Argentina",
+        "tipo": "fixed",
+        "coupon_schedule": [
+            (date(2026, 7, 17), date(2029, 10, 31), 0.06),
+        ],
+        "first_coupon_date": date(2026, 8, 31),
+        "coupon_dates": (
+            "01-31", "02-28", "03-31", "04-30", "05-31",
+            "06-30", "07-31", "08-31", "09-30", "10-31",
+            "11-30", "12-31",
+        ),
+        "amortization_schedule": [
+            (date(2029, 10, 31), 1.00),
+        ],
+    },
+
     "AN29": {
         "full_name": "Bono del Tesoro Nacional en Dólares Estadounidenses 6,50% Vto. 30/11/2029 (BONAR 2029N)",
         "currency": "USD",
@@ -1390,6 +1415,7 @@ SOBERANOS_API_MAP = {
     # Bonares
     "AO27D": "AO27",
     "AO28D": "AO28",
+    "AO29D": "AO29",
     "AL29D": "AL29",
     "AL30D": "AL30",
     "AL35D": "AL35",
@@ -4749,7 +4775,7 @@ with tab_leg:
         bono_sel = st.selectbox(
             "Seleccionar bono para ver flujos",
             options=[
-    "AL29", "AL30", "AL35", "AE38", "AL41", "AN29", "AO27", "AO28",
+    "AL29", "AL30", "AL35", "AE38", "AL41", "AN29", "AO27", "AO28", "AO29",
     "GD29", "GD30", "GD35", "GD38", "GD41", "GD46",
     "BPOA7", "BPOB7", "BPOC7", "BPOD7", "BPOA8", "BPOB8",
     "SFD34", "NDT25", "PMM29", "BDC36", "CO32", "CO35"],
@@ -4807,7 +4833,7 @@ with tab_leg:
             # --- Universo de bonos disponibles ---
             BONOS_SENSIBILIDAD = [
                 # Bonares
-                "AL29", "AL30", "AL35", "AE38", "AL41", "AN29", "AO27", "AO28",
+                "AL29", "AL30", "AL35", "AE38", "AL41", "AN29", "AO27", "AO28", "AO29",
                 # Globales
                 "GD29", "GD30", "GD35", "GD38", "GD41", "GD46",
                 # BOPREALes
@@ -5320,9 +5346,9 @@ with tab_corpos:
 # TAB 6: FUTUROS DOLAR
 # =========================
 with tab_futuros:
-    st.markdown("## Futuros de dólar A3")
+    st.markdown("## Futuros de dólar")
 
-    col1, col2 = st.columns([1, 4])
+    col1, col2 = st.columns([1, 4]
 
     with col1:
         if st.button("Refrescar futuros"):

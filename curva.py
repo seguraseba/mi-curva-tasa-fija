@@ -5348,7 +5348,7 @@ with tab_corpos:
 with tab_futuros:
     st.markdown("## Futuros de dólar")
 
-    col1, col2 = st.columns([1, 4]
+    col1, col2 = st.columns([1, 4])
 
     with col1:
         if st.button("Refrescar futuros"):

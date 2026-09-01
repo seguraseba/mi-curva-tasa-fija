@@ -1378,7 +1378,7 @@ PAGOS_FINALES = {
 
 FECHA_EMISION = {
     "TZXO7": date(2026, 6, 30),
-    "TZXD8"; date(2026, 6, 30),
+    "TZXD8": date(2026, 6, 30),
     "TXMD9": date(2026, 6, 12), 
     "TXMD8": date(2026, 6, 12),
     "TXMJ0": date(2026, 6, 12),
